@@ -11,8 +11,11 @@ Friends on the same Wi-Fi: open `http://<your-computer-ip>:3000`.
 ## Put it on the internet
 Any host that runs Node and supports WebSockets works (Render, Railway, Fly.io, a VPS). Use `npm install` as the build command and `npm start` as the start command. The client automatically uses `wss://` on HTTPS hosts. Home hosting: forward TCP port 3000 on your router.
 
+## Game modes
+- **Solo (vs bots):** a private match just for you, with 24 bots. After it ends, press Play again.
+- **Create custom match:** you get a 5-letter code. Friends enter it under "Join with code", or open the invite link (`/?c=CODE`). No bots. The host presses Start once at least 2 players are in the lobby. After a match, everyone returns to the lobby.
+
 ## Notes
-- One global room, one match at a time. Matches restart 8 s after they end. Dead players watch, then drop into the next match automatically.
-- Late joiners can drop into a running match until the storm's 3rd shrink; after that they wait for the next one.
-- Tunables are at the top of `server.js` (TOTAL players, MAX_HUMANS, tick rate) and in `WP` (weapons).
+- Up to 20 players per custom match. Matches already started can't be joined.
+- Tunables are at the top of `server.js` (TOTAL, MAX_HUMANS, tick rate) and in `WP` (weapons).
 - There is no client-side prediction, so very high ping will feel laggy. Host near your players.
