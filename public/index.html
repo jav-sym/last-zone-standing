@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Last Zone Standing: Online</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Shooter Realm</title>
 <style>
 html,body{margin:0;height:100%;background:#0b1117;overflow:hidden;font-family:system-ui,sans-serif}
 canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none}
@@ -25,7 +25,7 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 <canvas id="c"></canvas>
 <div id="rot"><span>📱↻</span>Rotate your phone to landscape to play</div>
 <div id="tb"><button id="bb">🧱</button><button id="sw">⇄</button></div>
-<div id="ov"><h1 id="t">Last Zone Standing</h1><p id="s">Battle royale: last one standing wins.</p>
+<div id="ov"><h1 id="t">Shooter Realm</h1><p id="s">Battle royale: last one standing wins.</p>
 <div id="menu">
 <p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>Q / Right-click</b> build wall · <b>1-4</b> weapon</p>
 <p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🧱 builds, ⇄ swaps weapon.</p>
@@ -71,7 +71,7 @@ $('bCreate').onclick=()=>{fs();$('err').textContent='';send({t:'create',name:nm(
 $('bJoin').onclick=()=>{fs();$('err').textContent='';send({t:'join',name:nm(),code:$('cd').value})};
 $('bStart').onclick=()=>send({t:'start'});
 $('bAgain').onclick=()=>send({t:'again'});
-const toMenu=()=>{send({t:'leave'});playing=false;dead=false;banner='';ents.clear();title('Last Zone Standing','Battle royale: last one standing wins.');panel('menu')};
+const toMenu=()=>{send({t:'leave'});playing=false;dead=false;banner='';ents.clear();title('Shooter Realm','Battle royale: last one standing wins.');panel('menu')};
 $('bLeaveL').onclick=toMenu;$('bLeaveA').onclick=toMenu;
 $('bCopy').onclick=()=>{const u=location.origin+'/?c='+code;if(navigator.clipboard)navigator.clipboard.writeText(u).catch(()=>{});$('bCopy').textContent='Copied!';setTimeout(()=>$('bCopy').textContent='Copy invite link',1500)};
 const qc=new URLSearchParams(location.search).get('c');if(qc)$('cd').value=qc.toUpperCase().slice(0,5);
