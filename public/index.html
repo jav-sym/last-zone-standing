@@ -82,8 +82,8 @@ function handle(m){
  case 'roster':names=m.n;break;
  case 'feed':feed.push({txt:m.a+' ➜ '+m.b,t:6});if(feed.length>5)feed.shift();break;
  case 'dead':dead=true;deadTxt='Eliminated: #'+m.place+' · '+m.k+' kill'+(m.k==1?'':'s')+' · by '+m.by+'. Spectating until the next match.';break;
- case 'end':{const won=m.wid===me;banner=won?'🏆 You are the last one standing!':(m.winner?m.winner+' wins!':'No winner');
-  if(mode=='solo')setTimeout(()=>{if(!playing)return;title(won?'🏆 You won!':'Match over',won?'You outlasted every bot.':(deadTxt||'The match has ended.'));panel('after')},1200);break}
+ case 'end':{const won=m.wid===me;banner=won?'🏆 You are the last one standing!':(m.winner?m.winner+' wins!':(dead?'':'Match over'));
+  if(mode=='solo')setTimeout(()=>{if(!playing)return;title(won?'🏆 You won!':(dead?'Eliminated':'Match over'),won?'You outlasted every bot.':(deadTxt||'The match has ended.'));panel('after')},1200);break}
  case 'lobby':{mode=m.mode;code=m.code;playing=false;dead=false;banner='';ents.clear();
   $('code').textContent=m.code;$('plist').textContent=m.players.map((n,i)=>(i?'':'👑 ')+n).join('\n');
   $('bStart').style.display=m.host?'':'none';$('bStart').disabled=m.players.length<2;
@@ -118,7 +118,7 @@ function draw(){
  for(const f of fx){ctx.fillStyle='#f87171';ctx.globalAlpha=f.t*3;ctx.beginPath();ctx.arc(f.x,f.y,8*(1-f.t),0,7);ctx.fill();ctx.globalAlpha=1}
  const [sx,sy,sr,shr,ph,secs]=storm;
  const sme=ents.get(me),inS=!!sme&&!dead&&Math.hypot(sme.x-sx,sme.y-sy)>sr;
- ctx.fillStyle='rgba(124,58,237,.38)';ctx.beginPath();ctx.rect(-3000,-3000,M+6000,M+6000);ctx.arc(sx,sy,Math.max(sr,1),0,7,true);ctx.fill('evenodd');
+ ctx.fillStyle='rgba(124,58,237,.38)';ctx.beginPath();ctx.rect(-3000,-3000,M+6000,M+6000);ctx.moveTo(sx+Math.max(sr,1),sy);ctx.arc(sx,sy,Math.max(sr,1),0,7,true);ctx.fill('evenodd');
  ctx.strokeStyle='#c4b5fd';ctx.lineWidth=4;ctx.beginPath();ctx.arc(sx,sy,sr,0,7);ctx.stroke();
  if(!shr){ctx.setLineDash([14,14]);ctx.strokeStyle='#fff8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,STR[ph]??0,0,7);ctx.stroke();ctx.setLineDash([])}
  if(inS){const a=Math.atan2(sy-sme.y,sx-sme.x),q=1/Z;ctx.save();ctx.translate(sme.x+Math.cos(a)*80*q,sme.y+Math.sin(a)*80*q);ctx.rotate(a);ctx.scale(q,q);ctx.fillStyle='#fde047';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-10,-12);ctx.lineTo(-10,12);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
@@ -138,7 +138,7 @@ function draw(){
  const mm=130,mx0=Wd-mm-14-sR,my0=14+sT,k=mm/M,zx=mx0+sx*k,zy=my0+sy*k;
  ctx.fillStyle='#10161dcc';ctx.fillRect(mx0,my0,mm,mm);
  ctx.save();ctx.beginPath();ctx.rect(mx0,my0,mm,mm);ctx.clip();
- ctx.fillStyle='rgba(124,58,237,.55)';ctx.beginPath();ctx.rect(mx0,my0,mm,mm);ctx.arc(zx,zy,Math.max(sr*k,.5),0,7,true);ctx.fill('evenodd');
+ ctx.fillStyle='rgba(124,58,237,.55)';ctx.beginPath();ctx.rect(mx0,my0,mm,mm);ctx.moveTo(zx+Math.max(sr*k,.5),zy);ctx.arc(zx,zy,Math.max(sr*k,.5),0,7,true);ctx.fill('evenodd');
  ctx.strokeStyle='#c4b5fd';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(zx,zy,Math.max(sr*k,.5),0,7);ctx.stroke();
  if(!shr){ctx.setLineDash([4,4]);ctx.strokeStyle='#fffc';ctx.lineWidth=1;ctx.beginPath();ctx.arc(zx,zy,(STR[ph]??0)*k,0,7);ctx.stroke();ctx.setLineDash([])}
  if(sme){const px=mx0+sme.x*k,py=my0+sme.y*k;ctx.fillStyle='#3b82f6';ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();ctx.stroke()}
