@@ -1,7 +1,12 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Last Zone Standing: Online</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Last Zone Standing: Online</title>
 <style>
 html,body{margin:0;height:100%;background:#0b1117;overflow:hidden;font-family:system-ui,sans-serif}
-canvas{display:block;cursor:crosshair}
+canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none}
+#rot{position:fixed;inset:0;z-index:99;display:none;align-items:center;justify-content:center;flex-direction:column;background:#0b1117;color:#fff;font-size:22px;text-align:center;padding:24px}
+#rot span{font-size:64px;margin-bottom:10px}
+@media (orientation:portrait) and (pointer:coarse){#rot{display:flex}}
+#tb{position:fixed;right:14px;top:160px;display:none;flex-direction:column;gap:12px}
+#tb button{margin:0;width:64px;height:64px;padding:0;font-size:28px;border-radius:50%;background:#0f172acc;color:#fff;border:2px solid #fff6;touch-action:manipulation}
 #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;background:rgba(5,10,15,.82);text-align:center;padding:20px}
 button{font-size:20px;padding:12px 28px;border:0;border-radius:10px;background:#4ade80;color:#052e16;font-weight:700;cursor:pointer;margin-top:14px}
 button:disabled{opacity:.5;cursor:default}
@@ -9,8 +14,11 @@ input{font-size:18px;padding:10px 14px;border-radius:10px;border:2px solid #3341
 h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-height:1.45}
 </style></head><body>
 <canvas id="c"></canvas>
+<div id="rot"><span>📱↻</span>Rotate your phone to landscape to play</div>
+<div id="tb"><button id="bb">🧱</button><button id="sw">⇄</button></div>
 <div id="ov"><h1 id="t">Last Zone Standing</h1><p id="s">Online battle royale. Up to 20 players plus bots; last one alive wins.</p>
 <p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>Q / Right-click</b> build wall · <b>1-4</b> weapon</p>
+<p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🧱 builds, ⇄ swaps weapon.</p>
 <input id="nm" maxlength="14" placeholder="Your name"><button id="b" disabled>Connecting…</button></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov'),bt=document.getElementById('b');
@@ -21,7 +29,7 @@ const LC={pistol:WC[0],shotgun:WC[1],ar:WC[2],sniper:WC[3],heal:'#f43f5e',shield
 const LL={pistol:'G',shotgun:'G',ar:'G',sniper:'G',heal:'+',shield:'S',wood:'W'};
 const STR=[1500,950,520,220,0];
 let ws,M=3200,me=0,trees=[],walls=[],loot=[],ents=new Map(),bul=[],bT=0,storm=[1600,1600,2400,0,0,25],fx=[],names={},my=null,alive=0,feed=[],cam={x:1600,y:1600},banner='',dead=false,deadTxt='',playing=false,last=0;
-let keys={},mouse={x:0,y:0,down:false},qb=false,wsel=-1;
+let keys={},mouse={x:0,y:0,down:false},qb=false,wsel=-1,aimA=0,touchMode=false,movS=null,aimS=null;const SR=55,tb=document.getElementById('tb');
 
 function show(title,text,btn){document.getElementById('t').textContent=title;document.getElementById('s').textContent=text;ov.style.display='flex';bt.style.display=btn?'':'none';document.getElementById('nm').style.display=btn?'':'none'}
 function connect(){
@@ -29,7 +37,7 @@ function connect(){
  ws.onopen=()=>{bt.disabled=false;bt.textContent='Join match'};
  ws.onmessage=ev=>handle(JSON.parse(ev.data));
  ws.onclose=()=>{playing=false;show('Disconnected','The connection to the server was lost.',false);ov.style.display='flex'}}
-bt.onclick=()=>{const n=document.getElementById('nm').value;ws.send(JSON.stringify({t:'join',name:n}));bt.disabled=true;bt.textContent='Joining…'};
+bt.onclick=()=>{if(matchMedia('(pointer:coarse)').matches){const d=document.documentElement;(d.requestFullscreen?d.requestFullscreen():Promise.reject()).then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{})}const n=document.getElementById('nm').value;ws.send(JSON.stringify({t:'join',name:n}));bt.disabled=true;bt.textContent='Joining…'};
 
 function handle(m){
  switch(m.t){
@@ -55,7 +63,7 @@ function draw(){
  ctx.textAlign='center';
  for(const l of loot){if(!vis(l[0],l[1],30))continue;ctx.fillStyle=LC[l[2]];ctx.fillRect(l[0]-9,l[1]-9,18,18);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(l[0]-9,l[1]-9,18,18);ctx.fillStyle='#000';ctx.font='bold 11px sans-serif';ctx.fillText(LL[l[2]],l[0],l[1]+4)}
  for(const w of walls){if(!vis(w[0],w[1],200))continue;ctx.fillStyle=w[4]>150?'#92400e':'#b45309';ctx.fillRect(w[0],w[1],w[2],w[3]);ctx.strokeStyle='#451a03';ctx.lineWidth=2;ctx.strokeRect(w[0],w[1],w[2],w[3])}
- const aim=Math.atan2(mouse.y-H/2,mouse.x-W/2);
+ const aim=aimA;
  for(const [id,e] of ents){if(!vis(e.x,e.y,40))continue;const self=id===me,ang=self?aim:e.ang;
   ctx.save();ctx.translate(e.x,e.y);ctx.rotate(ang);ctx.fillStyle=WC[e.w]||'#fff';ctx.fillRect(8,-3,20,6);ctx.restore();
   ctx.fillStyle=self?'#3b82f6':names[id]?'#f59e0b':'#ef4444';ctx.beginPath();ctx.arc(e.x,e.y,14,0,7);ctx.fill();ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.stroke();
@@ -79,6 +87,7 @@ function draw(){
   ctx.fillStyle='#0008';ctx.fillRect(bx,by,bw,14);ctx.fillRect(bx,by-18,bw,10);
   ctx.fillStyle='#4ade80';ctx.fillRect(bx,by,bw*Math.max(0,my[0])/100,14);ctx.fillStyle='#38bdf8';ctx.fillRect(bx,by-18,bw*my[1]/100,10);
   my[3].forEach((k,i)=>{const x=W/2-my[3].length*45+i*90+4,on=k===my[4];ctx.fillStyle=on?'#fff':'#0008';ctx.fillRect(x,by-70,82,36);ctx.fillStyle=on?'#000':WC[k];ctx.font='bold 13px sans-serif';ctx.fillText((i+1)+' '+WN[k],x+41,by-47)})}
+ if(touchMode)for(const s of [movS,aimS]){if(!s)continue;const v=sv(s);ctx.strokeStyle='#fff6';ctx.lineWidth=3;ctx.beginPath();ctx.arc(s.ox,s.oy,SR,0,7);ctx.stroke();ctx.fillStyle='#fff7';ctx.beginPath();ctx.arc(s.ox+v[0]*SR,s.oy+v[1]*SR,24,0,7);ctx.fill()}
  const mm=130,mx0=W-mm-14,my0=14,k=mm/M;ctx.fillStyle='#10161dcc';ctx.fillRect(mx0,my0,mm,mm);
  ctx.fillStyle='rgba(124,58,237,.5)';ctx.beginPath();ctx.rect(mx0,my0,mm,mm);ctx.arc(mx0+sx*k,my0+sy*k,Math.max(sr*k,.5),0,7,true);ctx.fill('evenodd');
  ctx.fillStyle='#3b82f6';ctx.beginPath();ctx.arc(mx0+cam.x*k,my0+cam.y*k,4,0,7);ctx.fill();
@@ -91,16 +100,27 @@ function frame(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;
  for(const f of fx)f.t-=dt;fx=fx.filter(f=>f.t>0);for(const f of feed)f.t-=dt;feed=feed.filter(f=>f.t>0);
  draw();requestAnimationFrame(frame)}
 
-addEventListener('keydown',e=>{if(e.target.tagName=='INPUT')return;const k=e.key.toLowerCase();if(k.length==1&&'wasd'.includes(k))keys[k]=true;
+addEventListener('keydown',e=>{if(e.target.tagName=='INPUT')return;setTouch(false);const k=e.key.toLowerCase();if(k.length==1&&'wasd'.includes(k))keys[k]=true;
  if(k=='q')qb=true;if(k.length==1&&'1234'.includes(k)&&my&&my[3][+k-1]!=null)wsel=+k-1});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 addEventListener('blur',()=>{keys={};mouse.down=false});
-cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
-cv.addEventListener('mousedown',e=>{mouse.x=e.clientX;mouse.y=e.clientY;if(e.button==2)qb=true;else mouse.down=true});
+cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2)});
+cv.addEventListener('mousedown',e=>{if(touchMode)return;mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2);if(e.button==2)qb=true;else mouse.down=true});
 addEventListener('mouseup',()=>{mouse.down=false});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
+function setTouch(v){touchMode=v;tb.style.display=v?'flex':'none';if(!v){movS=aimS=null}}
+function sv(s){const dx=s.x-s.ox,dy=s.y-s.oy,l=Math.hypot(dx,dy),m=Math.min(1,l/SR);return l?[dx/l*m,dy/l*m,m]:[0,0,0]}
+cv.addEventListener('touchstart',e=>{e.preventDefault();setTouch(true);for(const t of e.changedTouches){const s={id:t.identifier,ox:t.clientX,oy:t.clientY,x:t.clientX,y:t.clientY};if(t.clientX<W/2){if(!movS)movS=s}else if(!aimS)aimS=s}},{passive:false});
+cv.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)for(const s of [movS,aimS])if(s&&s.id===t.identifier){s.x=t.clientX;s.y=t.clientY}},{passive:false});
+const tend=e=>{for(const t of e.changedTouches){if(movS&&movS.id===t.identifier)movS=null;if(aimS&&aimS.id===t.identifier)aimS=null}};
+cv.addEventListener('touchend',tend);cv.addEventListener('touchcancel',tend);
+document.getElementById('bb').addEventListener('touchstart',e=>{e.preventDefault();qb=true},{passive:false});
+document.getElementById('sw').addEventListener('touchstart',e=>{e.preventDefault();if(my&&my[3].length>1)wsel=(my[3].indexOf(my[4])+1)%my[3].length},{passive:false});
 setInterval(()=>{if(!playing||dead||!ws||ws.readyState!==1)return;
- const m={t:'in',dx:(keys.d?1:0)-(keys.a?1:0),dy:(keys.s?1:0)-(keys.w?1:0),ang:+Math.atan2(mouse.y-H/2,mouse.x-W/2).toFixed(3),sh:mouse.down};
+ let dx,dy,sh;
+ if(touchMode){const a=movS?sv(movS):[0,0,0],b=aimS?sv(aimS):[0,0,0];dx=a[2]<.15?0:a[0];dy=a[2]<.15?0:a[1];if(b[2]>.15)aimA=Math.atan2(b[1],b[0]);sh=b[2]>.5}
+ else{dx=(keys.d?1:0)-(keys.a?1:0);dy=(keys.s?1:0)-(keys.w?1:0);sh=mouse.down}
+ const m={t:'in',dx,dy,ang:+aimA.toFixed(3),sh};
  if(qb){m.b=1;qb=false}if(wsel>=0){m.w=wsel;wsel=-1}ws.send(JSON.stringify(m))},33);
 connect();requestAnimationFrame(frame);
 </script></body></html>
