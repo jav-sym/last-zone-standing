@@ -189,7 +189,7 @@ function update(dt) {
   }
   if (!G.ents.some(e => !e.bot)) G.noHuman += dt;
   if (G.ents.length <= 1 || (ROOM.mode === 'solo' && G.noHuman > 2)) {
-    const w = G.ents[0];
+    const w = G.ents.length === 1 ? G.ents[0] : null;   // only a real last survivor counts as the winner
     broadcast({ t: 'end', winner: w ? w.name : null, wid: w ? w.id : 0 });
     ROOM.phase = 'ended'; ROOM.phaseT = 7;
   }
