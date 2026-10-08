@@ -30,7 +30,7 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 <p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>Q / Right-click</b> build wall · <b>1-4</b> weapon</p>
 <p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🧱 builds, ⇄ swaps weapon.</p>
 <input id="nm" maxlength="14" placeholder="Your name">
-<button id="bSolo" disabled>Solo (vs bots)</button>
+<button id="bSolo" disabled>Play solo (join queue)</button>
 <button id="bCreate" class="alt" disabled>Create custom match</button>
 <div class="row"><input id="cd" maxlength="5" placeholder="CODE"><button id="bJoin" class="alt" disabled>Join with code</button></div>
 <p id="err"></p></div>
@@ -51,7 +51,7 @@ const WN=['Pistol','Shotgun','Rifle','Sniper'],WC=['#e5e7eb','#fb923c','#60a5fa'
 const LC={pistol:WC[0],shotgun:WC[1],ar:WC[2],sniper:WC[3],heal:'#f43f5e',shield:'#38bdf8',wood:'#a16207'};
 const LL={pistol:'G',shotgun:'G',ar:'G',sniper:'G',heal:'+',shield:'S',wood:'W'};
 const STR=[1500,950,520,220,0];
-let ws,M=3200,me=0,trees=[],walls=[],loot=[],ents=new Map(),bul=[],bT=0,storm=[1600,1600,2400,0,0,25],fx=[],names={},my=null,alive=0,feed=[],cam={x:1600,y:1600},banner='',dead=false,deadTxt='',playing=false,last=0;
+let ws,M=3200,me=0,trees=[],walls=[],loot=[],ents=new Map(),bul=[],bT=0,storm=[1600,1600,2400,0,0,25],fx=[],names={},my=null,alive=0,feed=[],cam={x:1600,y:1600},banner='',dead=false,deadTxt='',playing=false,last=0,fz=0;
 let keys={},mouse={x:0,y:0,down:false},qb=false,wsel=-1,aimA=0,touchMode=false,movS=null,aimS=null;const SR=55,tb=document.getElementById('tb');
 
 const $=id=>document.getElementById(id);
@@ -81,20 +81,23 @@ function handle(m){
  case 'init':me=m.id;M=m.M;trees=m.trees;names=m.names;ents.clear();walls=[];loot=[];bul=[];feed=[];dead=false;banner='';deadTxt='';mode=m.mode;code=m.code;playing=true;panel('none');break;
  case 'roster':names=m.n;break;
  case 'feed':feed.push({txt:m.a+' ➜ '+m.b,t:6});if(feed.length>5)feed.shift();break;
- case 'dead':dead=true;deadTxt='Eliminated: #'+m.place+' · '+m.k+' kill'+(m.k==1?'':'s')+' · by '+m.by+'. Spectating until the next match.';break;
+ case 'dead':dead=true;deadTxt='Eliminated: #'+m.place+' · '+m.k+' kill'+(m.k==1?'':'s')+' · by '+m.by+'.'+(mode=='solo'?'':' Spectating until the next match.');if(mode=='solo')setTimeout(()=>{if(playing&&dead){title('Eliminated',deadTxt);panel('after')}},2500);break;
  case 'end':{const won=m.wid===me;banner=won?'🏆 You are the last one standing!':(m.winner?m.winner+' wins!':(dead?'':'Match over'));
   if(mode=='solo')setTimeout(()=>{if(!playing)return;title(won?'🏆 You won!':(dead?'Eliminated':'Match over'),won?'You outlasted every bot.':(deadTxt||'The match has ended.'));panel('after')},1200);break}
  case 'lobby':{mode=m.mode;code=m.code;playing=false;dead=false;banner='';ents.clear();
   $('code').textContent=m.code;$('plist').textContent=m.players.map((n,i)=>(i?'':'👑 ')+n).join('\n');
-  $('bStart').style.display=m.host?'':'none';$('bStart').disabled=m.players.length<2;
-  $('lh').textContent=m.host?(m.players.length<2?'Share this code. Waiting for at least one more player…':'Everyone here? Press Start.'):'Waiting for the host to start…';
-  title('Custom match',m.players.length+' player'+(m.players.length==1?'':'s')+' in the lobby');panel('lobby');break}
+  const q=m.mode=='solo',n=m.players.length,pl=n+' player'+(n==1?'':'s');
+  $('code').style.display=q?'none':'';$('bCopy').style.display=q?'none':'';
+  $('bStart').style.display=m.host?'':'none';$('bStart').textContent=q?'Start now':'Start match';$('bStart').disabled=!q&&n<2;
+  if(q){$('lh').textContent='Bots fill the empty spots, so the match is always full. Everyone starts together.';title('Finding players…','Match starts in '+m.secs+'s · '+pl+' in the queue')}
+  else{$('lh').textContent=m.host?(n<2?'Share this code. Waiting for at least one more player…':'Everyone here? Press Start.'):'Waiting for the host to start…';title('Custom match',pl+' in the lobby')}
+  panel('lobby');break}
  case 'err':$('err').textContent=m.msg;if($('menu').style.display=='none')alert(m.msg);break;
  case 's':{const seen=new Set();
   for(const a of m.e){const id=a[0];seen.add(id);let e=ents.get(id);if(!e){e={x:a[1],y:a[2],ang:a[3]/100};ents.set(id,e)}e.tx=a[1];e.ty=a[2];e.tang=a[3]/100;e.hp=a[4];e.sh=a[5];e.w=a[6]}
   for(const id of [...ents.keys()])if(!seen.has(id))ents.delete(id);
   bul=m.b;bT=performance.now();for(const f of m.fx)fx.push({x:f[0],y:f[1],t:.3});
-  storm=m.st;alive=m.al;if(m.w)walls=m.w;if(m.l)loot=m.l;if(m.me)my=m.me;break}
+  storm=m.st;fz=m.fz||0;alive=m.al;if(m.w)walls=m.w;if(m.l)loot=m.l;if(m.me)my=m.me;break}
  }}
 
 function vis(x,y,mg){return Math.abs(x-cam.x)<W/2/Z+mg&&Math.abs(y-cam.y)<H/2/Z+mg}
@@ -144,6 +147,7 @@ function draw(){
  if(sme){const px=mx0+sme.x*k,py=my0+sme.y*k;ctx.fillStyle='#3b82f6';ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();ctx.stroke()}
  ctx.restore();ctx.strokeStyle='#fff6';ctx.lineWidth=2;ctx.strokeRect(mx0,my0,mm,mm);
  ctx.textAlign='center';ctx.fillStyle='#fff';
+ if(fz>0){ctx.font='bold 72px sans-serif';ctx.fillText(fz,Wd/2,Hd/2);ctx.font='bold 22px sans-serif';ctx.fillText('Match starting: get ready!',Wd/2,Hd/2+40)}
  if(banner){ctx.font='bold 40px sans-serif';ctx.fillText(banner,Wd/2,Hd/2-60)}
  else if(dead){ctx.font='bold 20px sans-serif';ctx.fillText(deadTxt,Wd/2,Hd-60)}
  ctx.restore()}
