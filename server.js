@@ -4,6 +4,8 @@ const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
 const M = 3200, HZ = 30, DT = 1 / HZ, TOTAL = 25, MAX_HUMANS = 20;
+const QUEUE_SECS = +process.env.QUEUE_SECS || 20;   // solo queue waits this long for more players
+const FREEZE = 4;                                   // everyone (bots too) is frozen this long when a match begins
 const R = Math.random, rr = (a, b) => a + R() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ad = a => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
 // d=damage r=seconds between shots s=bullet speed sp=spread p=pellets l=bullet lifetime
@@ -29,7 +31,7 @@ const wss = new WebSocketServer({ server, maxPayload: 2048 });
 const clients = new Map();          // ws -> client
 const rooms = new Map();           // code -> room
 // Game functions below work on the "current" room: call enter(room) first.
-let ROOM = null, G = null, nextId = 1, clientSeq = 1;
+let ROOM = null, G = null, nextId = 1, clientSeq = 1, queueRoom = null;
 const enter = room => { ROOM = room; G = room.G; };
 
 const send = (c, o) => { if (c.ws.readyState === 1) c.ws.send(JSON.stringify(o)); };
@@ -42,9 +44,18 @@ function makeRoom(mode) {
 }
 function sendLobby(room) {
   const players = [...room.clients].map(c => c.name);
-  for (const c of room.clients) send(c, { t: 'lobby', code: room.code, mode: room.mode, players, host: room.host === c });
+  for (const c of room.clients) send(c, { t: 'lobby', code: room.code, mode: room.mode, players, host: room.host === c, secs: room.mode === 'solo' ? Math.max(0, Math.ceil(room.phaseT)) : 0 });
 }
 function joinRoom(c, room) { c.room = room; c.ent = null; room.clients.add(c); if (!room.host) room.host = c; }
+// Solo = public queue: everyone who presses Solo joins the same lobby until the countdown ends,
+// then bots fill the empty spots and the whole match starts at the same moment.
+function queueJoin(c) {
+  if (!queueRoom || !rooms.has(queueRoom.code) || queueRoom.phase !== 'lobby' || queueRoom.clients.size >= MAX_HUMANS) {
+    queueRoom = makeRoom('solo'); queueRoom.phaseT = QUEUE_SECS; queueRoom.lastSecs = -1;
+  }
+  joinRoom(c, queueRoom);
+  if (queueRoom.clients.size >= MAX_HUMANS) startMatch(queueRoom); else sendLobby(queueRoom);
+}
 function leaveRoom(c) {
   const room = c.room; if (!room) return;
   enter(room);
@@ -80,14 +91,14 @@ function addHuman(c) {
   send(c, { t: 'init', id: e.id, mode: ROOM.mode, code: ROOM.code, M, trees: G.trees.map(t => [Math.round(t.x), Math.round(t.y), Math.round(t.r)]), names: namesMap() });
 }
 function startMatch(room) {
-  room.G = { t: 0, ents: [], trees: [], walls: [], loot: [], bul: [], fx: [], wv: 1, lv: 1, noHuman: 0,
+  room.G = { t: 0, ents: [], trees: [], walls: [], loot: [], bul: [], fx: [], wv: 1, lv: 1, noHuman: 0, freeze: FREEZE,
     storm: { cx: rr(1300, 1900), cy: rr(1300, 1900), r: 2400, from: 2400, to: 1500, ph: 0, tm: 0, state: 'wait' } };
   enter(room);
   for (let i = 0; i < 150; i++) G.trees.push({ x: rr(60, M - 60), y: rr(60, M - 60), r: rr(20, 30) });
   for (let i = 0; i < 16; i++) house(rr(200, M - 380), rr(200, M - 330));
   for (let i = 0; i < 90; i++) randLoot(rr(60, M - 60), rr(60, M - 60));
   for (const c of room.clients) addHuman(c);
-  if (room.mode === 'solo') for (let i = 0; i < TOTAL - 1; i++) G.ents.push(mkEnt(true));   // bots only in solo
+  if (room.mode === 'solo') { const nb = Math.max(0, TOTAL - room.clients.size); for (let i = 0; i < nb; i++) G.ents.push(mkEnt(true)); }   // bots only in solo, created at the same moment as the players
   room.phase = 'play';
   broadcast({ t: 'roster', n: namesMap() });
 }
@@ -153,6 +164,7 @@ function ai(b, dt) {
   return [mx, my];
 }
 function update(dt) {
+  if (G.freeze > 0) { G.freeze -= dt; return; }   // nobody acts until the countdown ends
   G.t += dt; const st = G.storm; st.tm += dt;
   if (st.state === 'wait' && st.tm > (st.ph === 0 ? 25 : 15)) { st.state = 'shrink'; st.tm = 0; st.from = st.r; st.to = STORM_R[st.ph] ?? 0; }
   else if (st.state === 'shrink') { const k = Math.min(1, st.tm / 22); st.r = st.from + (st.to - st.from) * k; if (k >= 1) { st.state = 'wait'; st.tm = 0; st.ph++; } }
@@ -198,7 +210,7 @@ function snapshot() {
   const E = G.ents.map(e => [e.id, Math.round(e.x), Math.round(e.y), Math.round(e.ang * 100), Math.ceil(e.hp), Math.ceil(e.sh), WK.indexOf(e.cw)]);
   const B = G.bul.map(b => [Math.round(b.x), Math.round(b.y), Math.round(b.vx), Math.round(b.vy)]);
   const st = G.storm;
-  const base = { t: 's', e: E, b: B, fx: G.fx, al: E.length,
+  const base = { t: 's', e: E, b: B, fx: G.fx, al: E.length, fz: Math.max(0, Math.ceil(G.freeze)),
     st: [Math.round(st.cx), Math.round(st.cy), Math.round(st.r), st.state === 'wait' ? 0 : 1, st.ph, st.state === 'wait' ? Math.max(0, Math.ceil((st.ph === 0 ? 25 : 15) - st.tm)) : 0] };
   G.fx = [];
   for (const c of ROOM.clients) {
@@ -213,6 +225,11 @@ function snapshot() {
 setInterval(() => {
   for (const room of rooms.values()) {
     if (room.phase === 'play') { enter(room); update(DT); snapshot(); }
+    else if (room.phase === 'lobby' && room.mode === 'solo') {
+      room.phaseT -= DT;
+      if (room.phaseT <= 0) startMatch(room);
+      else { const s = Math.ceil(room.phaseT); if (s !== room.lastSecs) { room.lastSecs = s; sendLobby(room); } }
+    }
     else if (room.phase === 'ended' && room.mode === 'custom') { room.phaseT -= DT; if (room.phaseT <= 0) { room.phase = 'lobby'; sendLobby(room); } }
   }
 }, 1000 / HZ);
@@ -230,7 +247,7 @@ wss.on('connection', ws => {
     if (!m || typeof m !== 'object') return;
     const room = c.room;
     if (m.t === 'solo' && !room) {
-      c.name = cleanName(m.name, c); const r = makeRoom('solo'); joinRoom(c, r); startMatch(r);
+      c.name = cleanName(m.name, c); queueJoin(c);
     } else if (m.t === 'create' && !room) {
       c.name = cleanName(m.name, c); const r = makeRoom('custom'); joinRoom(c, r); sendLobby(r);
     } else if (m.t === 'join' && !room) {
@@ -240,11 +257,11 @@ wss.on('connection', ws => {
       if (r.phase !== 'lobby') return send(c, { t: 'err', msg: 'That match has already started' });
       if (r.clients.size >= MAX_HUMANS) return send(c, { t: 'err', msg: 'That match is full' });
       c.name = cleanName(m.name, c); joinRoom(c, r); sendLobby(r);
-    } else if (m.t === 'start' && room && room.mode === 'custom' && room.host === c && room.phase === 'lobby') {
-      if (room.clients.size < 2) return send(c, { t: 'err', msg: 'Need at least 2 players to start' });
+    } else if (m.t === 'start' && room && room.host === c && room.phase === 'lobby') {
+      if (room.mode === 'custom' && room.clients.size < 2) return send(c, { t: 'err', msg: 'Need at least 2 players to start' });
       startMatch(room);
-    } else if (m.t === 'again' && room && room.mode === 'solo' && room.phase === 'ended') {
-      startMatch(room);
+    } else if (m.t === 'again' && room && room.mode === 'solo' && (room.phase === 'ended' || (c.ent && c.ent.dead))) {
+      leaveRoom(c); queueJoin(c);
     } else if (m.t === 'leave') {
       leaveRoom(c);
     } else if (m.t === 'in') {
