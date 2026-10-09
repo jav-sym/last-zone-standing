@@ -24,11 +24,11 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="rot"><span>📱↻</span>Rotate your phone to landscape to play</div>
-<div id="tb"><button id="bb">🧱</button><button id="bp">🔁</button><button id="be">✏️</button><button id="sw">⇄</button></div>
+<div id="tb"><button id="bb">🔨</button><button id="bp">🔁</button><button id="be">✏️</button><button id="sw">⇄</button></div>
 <div id="ov"><h1 id="t">Shooter Realm</h1><p id="s">Battle royale: last one standing wins.</p>
 <div id="menu">
-<p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>1-4</b> weapon · <b>Z/X/C</b> pick wall / floor / cone · <b>Q or Right-click</b> build · <b>E</b> edit a wall</p>
-<p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🧱 builds, 🔁 changes piece, ✏️ edits a wall, ⇄ swaps weapon.</p>
+<p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>1-4</b> weapon · <b>Q</b> build mode (or <b>Z/X/C</b> wall / floor / ramp) · <b>Click</b> build · <b>R</b> flip ramp · <b>E</b> edit a wall</p>
+<p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🔨 build mode (push the right stick to build), 🔁 changes piece, ✏️ edits a wall, ⇄ swaps weapon.</p>
 <input id="nm" maxlength="14" placeholder="Your name">
 <button id="bSolo" disabled>Play solo (join queue)</button>
 <button id="bCreate" class="alt" disabled>Create custom match</button>
@@ -52,8 +52,8 @@ const LC={pistol:WC[0],shotgun:WC[1],ar:WC[2],sniper:WC[3],heal:'#f43f5e',shield
 const LL={pistol:'G',shotgun:'G',ar:'G',sniper:'G',heal:'+',shield:'S',wood:'W'};
 const STR=[1500,950,520,220,0];
 let ws,M=3200,me=0,trees=[],walls=[],loot=[],ents=new Map(),bul=[],bT=0,storm=[1600,1600,2400,0,0,25],fx=[],names={},my=null,alive=0,feed=[],cam={x:1600,y:1600},banner='',dead=false,deadTxt='',playing=false,last=0,fz=0;
-const T=66,SEG=22,BN=['Wall','Floor','Cone'],BC=[10,5,15],BI=['🧱','⬜','🔺'];
-let floors=[],bsel=1,edit=null;
+const T=90,SEG=30,BN=['Wall','Floor','Ramp'],BC=[10,5,10],BI=['🧱','⬜','◢'];
+let floors=[],bsel=1,brot=0,bmode=false,edit=null;
 let keys={},mouse={x:0,y:0,down:false},qb=false,wsel=-1,aimA=0,touchMode=false,movS=null,aimS=null;const SR=55,tb=document.getElementById('tb');
 
 const $=id=>document.getElementById(id);
@@ -80,7 +80,7 @@ const qc=new URLSearchParams(location.search).get('c');if(qc)$('cd').value=qc.to
 
 function handle(m){
  switch(m.t){
- case 'init':me=m.id;M=m.M;trees=m.trees;names=m.names;ents.clear();walls=[];floors=[];edit=null;loot=[];bul=[];feed=[];dead=false;banner='';deadTxt='';mode=m.mode;code=m.code;playing=true;panel('none');break;
+ case 'init':me=m.id;M=m.M;trees=m.trees;names=m.names;ents.clear();walls=[];floors=[];edit=null;bmode=false;loot=[];bul=[];feed=[];dead=false;banner='';deadTxt='';mode=m.mode;code=m.code;playing=true;panel('none');break;
  case 'roster':names=m.n;break;
  case 'feed':feed.push({txt:m.a+' ➜ '+m.b,t:6});if(feed.length>5)feed.shift();break;
  case 'dead':dead=true;deadTxt='Eliminated: #'+m.place+' · '+m.k+' kill'+(m.k==1?'':'s')+' · by '+m.by+'.'+(mode=='solo'?'':' Spectating until the next match.');if(mode=='solo')setTimeout(()=>{if(playing&&dead){title('Eliminated',deadTxt);panel('after')}},2500);break;
@@ -121,31 +121,31 @@ function drawChar(e,id,self,ang,t){
  ctx.translate(0,-6);ctx.rotate(ang);if(!right)ctx.scale(1,-1);
  ctx.strokeStyle='#111';ctx.lineWidth=6.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
  ctx.strokeStyle=sh;ctx.lineWidth=4.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
- const w=e.w|0;ctx.strokeStyle='#111';ctx.lineWidth=1.5;ctx.fillStyle='#374151';
- if(w==0){ctx.fillRect(10,-2.5,11,5);ctx.strokeRect(10,-2.5,11,5);ctx.fillRect(11,2,4,5)}
+ const w=(self&&bmode)?-1:(e.w|0);ctx.strokeStyle='#111';ctx.lineWidth=1.5;ctx.fillStyle='#374151';
+ if(w<0){ctx.fillStyle='#92400e';ctx.fillRect(4,-2,24,4);ctx.strokeRect(4,-2,24,4);ctx.fillStyle='#9ca3af';ctx.fillRect(24,-8,6,16);ctx.strokeRect(24,-8,6,16)}
+ else if(w==0){ctx.fillRect(10,-2.5,11,5);ctx.strokeRect(10,-2.5,11,5);ctx.fillRect(11,2,4,5)}
  else if(w==1){ctx.fillStyle='#92400e';ctx.fillRect(6,-3,10,6);ctx.fillStyle='#374151';ctx.fillRect(14,-2.5,18,5);ctx.strokeRect(6,-3,26,6)}
  else if(w==2){ctx.fillStyle='#1f2937';ctx.fillRect(6,-3,28,6);ctx.strokeRect(6,-3,28,6);ctx.fillRect(16,3,5,8);ctx.strokeRect(16,3,5,8)}
  else{ctx.fillRect(4,-2.5,40,5);ctx.strokeRect(4,-2.5,40,5);ctx.fillStyle='#60a5fa';ctx.fillRect(16,-7,12,4);ctx.strokeRect(16,-7,12,4)}
- ctx.fillStyle=WC[w]||'#fff';ctx.fillRect(10,-1,5,2);
+ if(w>=0){ctx.fillStyle=WC[w]||'#fff';ctx.fillRect(10,-1,5,2)}
  ctx.fillStyle=sk;ctx.beginPath();ctx.arc(12,0,2.8,0,7);ctx.fill();
  ctx.restore()}
-function plan(e,ang,type){const c=Math.cos(ang),s=Math.sin(ang),hor=Math.abs(c)>Math.abs(s),dx=hor?(c<0?-1:1):0,dy=hor?0:(s<0?-1:1),tx=Math.floor(e.x/T)+dx,ty=Math.floor(e.y/T)+dy;
- if(tx<0||ty<0||(tx+1)*T>M||(ty+1)*T>M)return null;if(type!=1)return[tx*T,ty*T,T,T];
- const horiz=!hor,x0=horiz?tx*T:(dx>0?(tx+1)*T:tx*T),y0=horiz?(dy>0?(ty+1)*T:ty*T):ty*T;return horiz?[x0,y0-6,T,12]:[x0-6,y0,12,T]}
-function startEdit(){const p=ents.get(me);if(!p)return;let best=null,bd=170;
- for(const w of walls){if(w[7]!==1)continue;const d=Math.hypot(w[0]+w[2]/2-p.x,w[1]+w[3]/2-p.y);if(d<bd){bd=d;best=w}}
+function plan(e,ang,type,rot){const c=Math.cos(ang),s=Math.sin(ang),hor=Math.abs(c)>Math.abs(s),dx=hor?(c<0?-1:1):0,dy=hor?0:(s<0?-1:1),px=Math.floor(e.x/T),py=Math.floor(e.y/T);
+ if(type==1){const horiz=!hor,x0=horiz?px*T:(dx>0?(px+1)*T:px*T),y0=horiz?(dy>0?(py+1)*T:py*T):py*T;if(x0>M||y0>M)return null;return[horiz?[x0,y0-7,T,14]:[x0-7,y0,14,T]]}
+ const tx=px+dx,ty=py+dy;if(tx<0||ty<0||(tx+1)*T>M||(ty+1)*T>M)return null;
+ if(type==2)return[[tx*T,ty*T,T,T]];
+ return[0,1,2].map(i=>[tx*T+i*SEG,ty*T+(rot?i:2-i)*SEG,SEG,SEG])}
+function startEdit(){const p=ents.get(me);if(!p)return;const ax=p.x+Math.cos(aimA)*T*.7,ay=p.y+Math.sin(aimA)*T*.7;let best=null,bd=1e9;
+ for(const w of walls){if(w[7]!==1)continue;if(Math.hypot(w[0]+w[2]/2-p.x,w[1]+w[3]/2-p.y)>230)continue;const d=Math.hypot(w[0]+w[2]/2-ax,w[1]+w[3]/2-ay);if(d<bd){bd=d;best=w}}
  if(!best)return;const gid=best[5],horiz=best[2]>best[3],sg=best[6],mask=[0,0,0];
  for(const w of walls)if(w[5]===gid&&w[7]===1)mask[w[6]]=1;
- edit={gid,horiz,x0:horiz?best[0]-sg*SEG:best[0]+6,y0:horiz?best[1]+6:best[1]-sg*SEG,mask}}
+ edit={gid,horiz,x0:horiz?best[0]-sg*SEG:best[0]+7,y0:horiz?best[1]+7:best[1]-sg*SEG,mask}}
 function endEdit(ok){if(edit&&ok)send({t:'edit',gid:edit.gid,mask:edit.mask});edit=null}
-function editBox(i){return edit.horiz?[edit.x0+i*SEG,edit.y0-18,SEG,36]:[edit.x0-18,edit.y0+i*SEG,36,SEG]}
+function editBox(i){return edit.horiz?[edit.x0+i*SEG,edit.y0-22,SEG,44]:[edit.x0-22,edit.y0+i*SEG,44,SEG]}
 function editClick(cx,cy){const wx=cam.x+(cx-W/2)/Z,wy=cam.y+(cy-H/2)/Z;
  for(let i=0;i<3;i++){const b=editBox(i);if(wx>=b[0]&&wx<=b[0]+b[2]&&wy>=b[1]&&wy<=b[1]+b[3]){edit.mask[i]^=1;return true}}return false}
 function drawWall(w){const x=w[0],y=w[1],wd=w[2],ht=w[3],hp=w[4],k=w[7];
- if(k===2){const cx=x+wd/2,cy=y+ht/2,cols=['#67e8f9','#22d3ee','#0891b2','#0e7490'],pts=[[x,y],[x+wd,y],[x+wd,y+ht],[x,y+ht]];
-  for(let i=0;i<4;i++){const a=pts[i],b=pts[(i+1)%4];ctx.fillStyle=hp>60?cols[i]:'#155e75';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(cx,cy);ctx.closePath();ctx.fill()}
-  ctx.strokeStyle='#164e63';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(cx,cy);ctx.moveTo(x+wd,y);ctx.lineTo(cx,cy);ctx.moveTo(x+wd,y+ht);ctx.lineTo(cx,cy);ctx.moveTo(x,y+ht);ctx.lineTo(cx,cy);ctx.stroke();
-  ctx.fillStyle='#fb923c';ctx.fillRect(cx-4,cy-4,8,8);return}
+ if(k===3){ctx.fillStyle=hp>35?'#22d3ee':'#0891b2';ctx.fillRect(x,y,wd,ht);ctx.fillStyle='#fb923c';ctx.fillRect(x+4,y+4,wd-8,6);ctx.fillRect(x+4,y+ht-10,wd-8,6);ctx.strokeStyle='#0e7490';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht);return}
  if(k===1){ctx.fillStyle=hp>35?'#22d3ee':'#0891b2';ctx.fillRect(x,y,wd,ht);if((w[5]+w[6])%2==0){ctx.fillStyle='#fb923c';ctx.fillRect(x+3,y+3,wd-6,ht-6)}ctx.strokeStyle='#0e7490';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht);return}
  ctx.fillStyle=hp>150?'#92400e':'#b45309';ctx.fillRect(x,y,wd,ht);ctx.strokeStyle='#451a03';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht)}
 function draw(){
@@ -173,7 +173,8 @@ function draw(){
  ctx.strokeStyle='#c4b5fd';ctx.lineWidth=4;ctx.beginPath();ctx.arc(sx,sy,sr,0,7);ctx.stroke();
  if(!shr){ctx.setLineDash([14,14]);ctx.strokeStyle='#fff8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,STR[ph]??0,0,7);ctx.stroke();ctx.setLineDash([])}
  if(inS){const a=Math.atan2(sy-sme.y,sx-sme.x),q=1/Z;ctx.save();ctx.translate(sme.x+Math.cos(a)*80*q,sme.y+Math.sin(a)*80*q);ctx.rotate(a);ctx.scale(q,q);ctx.fillStyle='#fde047';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-10,-12);ctx.lineTo(-10,12);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
- if(sme&&!dead&&!edit){const pl=plan(sme,aimA,bsel);if(pl){ctx.globalAlpha=.45;ctx.fillStyle=(my&&my[2]>=BC[bsel-1])?'#4ade80':'#f87171';ctx.fillRect(pl[0],pl[1],pl[2],pl[3]);ctx.globalAlpha=1}}
+ if(bmode&&sme&&!dead&&!edit){const gx=Math.floor(sme.x/T)*T,gy=Math.floor(sme.y/T)*T;ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=2;ctx.setLineDash([8,6]);ctx.strokeRect(gx,gy,T,T);ctx.setLineDash([]);
+  const pl=plan(sme,aimA,bsel,brot),ok=my&&my[2]>=BC[bsel-1];if(pl)for(const r of pl){ctx.globalAlpha=.5;ctx.fillStyle=ok?'#60a5fa':'#f87171';ctx.fillRect(r[0],r[1],r[2],r[3]);ctx.globalAlpha=1;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(r[0],r[1],r[2],r[3])}}
  if(edit){for(let i=0;i<3;i++){const b=editBox(i);ctx.fillStyle=edit.mask[i]?'rgba(34,211,238,.85)':'rgba(15,23,42,.65)';ctx.fillRect(b[0],b[1],b[2],b[3]);ctx.strokeStyle='#fde047';ctx.lineWidth=2;ctx.setLineDash(edit.mask[i]?[]:[4,3]);ctx.strokeRect(b[0],b[1],b[2],b[3]);ctx.setLineDash([])}}
  ctx.restore();
  if(touchMode)for(const s of [movS,aimS]){if(!s)continue;const v=sv(s);ctx.strokeStyle='#fff6';ctx.lineWidth=3;ctx.beginPath();ctx.arc(s.ox,s.oy,SR,0,7);ctx.stroke();ctx.fillStyle='#fff7';ctx.beginPath();ctx.arc(s.ox+v[0]*SR,s.oy+v[1]*SR,24,0,7);ctx.fill()}
@@ -187,8 +188,9 @@ function draw(){
  if(my&&!dead){const bw=240,bx=Wd/2-bw/2,by=Hd-50-sB;
   ctx.fillStyle='#0008';ctx.fillRect(bx,by,bw,14);ctx.fillRect(bx,by-18,bw,10);
   ctx.fillStyle='#4ade80';ctx.fillRect(bx,by,bw*Math.max(0,my[0])/100,14);ctx.fillStyle='#38bdf8';ctx.fillRect(bx,by-18,bw*my[1]/100,10);
-  my[3].forEach((k,i)=>{const x=Wd/2-my[3].length*45+i*90+4,on=k===my[4];ctx.fillStyle=on?'#fff':'#0008';ctx.fillRect(x,by-70,82,36);ctx.fillStyle=on?'#000':WC[k];ctx.font='bold 13px sans-serif';ctx.fillText((i+1)+' '+WN[k],x+41,by-47)});
-  ctx.font='13px sans-serif';ctx.fillStyle='#fff';ctx.fillText(edit?'EDIT: tap segments (or 1-3) · E confirm · Esc cancel':'Build: '+BN[bsel-1]+' ('+BC[bsel-1]+' wood) · Z wall X floor C cone · Q build · E edit',Wd/2,by-80)}
+  if(bmode||edit)[0,1,2].forEach(i=>{const x=Wd/2-135+i*92,on=bsel==i+1,ok=my[2]>=BC[i];ctx.fillStyle=on?'#60a5fa':'#0008';ctx.fillRect(x,by-70,86,36);ctx.fillStyle=on?'#0b1117':(ok?'#fff':'#f87171');ctx.font='bold 13px sans-serif';ctx.fillText((i+1)+' '+BN[i]+' '+BC[i],x+43,by-47)});
+  else my[3].forEach((k,i)=>{const x=Wd/2-my[3].length*45+i*90+4,on=k===my[4];ctx.fillStyle=on?'#fff':'#0008';ctx.fillRect(x,by-70,82,36);ctx.fillStyle=on?'#000':WC[k];ctx.font='bold 13px sans-serif';ctx.fillText((i+1)+' '+WN[k],x+41,by-47)});
+  ctx.font='13px sans-serif';ctx.fillStyle='#fff';ctx.fillText(edit?'EDIT: click segments (or 1-3) · E confirm · Esc cancel':(bmode?'BUILD MODE · click to build · R flip ramp · E edit · Q weapons':'Q build mode · Z/X/C quick build'),Wd/2,by-80)}
  const mm=130,mx0=Wd-mm-14-sR,my0=14+sT,k=mm/M,zx=mx0+sx*k,zy=my0+sy*k;
  ctx.fillStyle='#10161dcc';ctx.fillRect(mx0,my0,mm,mm);
  ctx.save();ctx.beginPath();ctx.rect(mx0,my0,mm,mm);ctx.clip();
@@ -202,20 +204,21 @@ function draw(){
  if(banner){ctx.font='bold 40px sans-serif';ctx.fillText(banner,Wd/2,Hd/2-60)}
  else if(dead){ctx.font='bold 20px sans-serif';ctx.fillText(deadTxt,Wd/2,Hd-60)}
  ctx.restore()}
-function frame(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;$('bb').textContent=BI[bsel-1];
+function frame(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;$('bb').textContent=bmode?'🔫':'🔨';$('bp').textContent=bsel==3&&brot?'◣':BI[bsel-1];
  for(const [id,e] of ents){const k=Math.min(1,dt*(id===me?22:14));e.x+=(e.tx-e.x)*k;e.y+=(e.ty-e.y)*k;e.ang+=ad(e.tang-e.ang)*Math.min(1,dt*18)}
  const s=ents.get(me);if(s){cam.x=s.x;cam.y=s.y}
  for(const f of fx)f.t-=dt;fx=fx.filter(f=>f.t>0);for(const f of feed)f.t-=dt;feed=feed.filter(f=>f.t>0);
  draw();requestAnimationFrame(frame)}
 
 addEventListener('keydown',e=>{if(e.target.tagName=='INPUT')return;setTouch(false);const k=e.key.toLowerCase();if(k.length==1&&'wasd'.includes(k))keys[k]=true;
- if(edit){if(k=='1'||k=='2'||k=='3')edit.mask[+k-1]^=1;if(k=='e'||k=='enter')endEdit(true);if(k=='escape')endEdit(false);return}
- if(k=='q')qb=true;if(k=='z')bsel=1;if(k=='x')bsel=2;if(k=='c')bsel=3;if(k=='e')startEdit();
- if(k.length==1&&'1234'.includes(k)&&my&&my[3][+k-1]!=null)wsel=+k-1});
+ if(edit){if(k=='1'||k=='2'||k=='3')edit.mask[+k-1]^=1;if(k=='e'||k=='g'||k=='enter')endEdit(true);if(k=='escape')endEdit(false);return}
+ if(k=='q')bmode=!bmode;if(k=='z'||k=='x'||k=='c'){bsel=k=='z'?1:k=='x'?2:3;bmode=true}
+ if(k=='r')brot^=1;if(k=='e'||k=='g')startEdit();
+ if(k.length==1&&'1234'.includes(k)){if(bmode){if(+k<=3)bsel=+k}else if(my&&my[3][+k-1]!=null)wsel=+k-1}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 addEventListener('blur',()=>{keys={};mouse.down=false});
 cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2)});
-cv.addEventListener('mousedown',e=>{if(touchMode)return;if(edit){if(e.button==0)editClick(e.clientX,e.clientY);return}mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2);if(e.button==2)qb=true;else mouse.down=true});
+cv.addEventListener('mousedown',e=>{if(touchMode)return;if(edit){if(e.button==0)editClick(e.clientX,e.clientY);return}mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2);if(e.button==0)mouse.down=true});
 addEventListener('mouseup',()=>{mouse.down=false});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 function setTouch(v){touchMode=v;tb.style.display=v?'grid':'none';if(!v){movS=aimS=null}}
@@ -224,8 +227,8 @@ cv.addEventListener('touchstart',e=>{e.preventDefault();setTouch(true);for(const
 cv.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)for(const s of [movS,aimS])if(s&&s.id===t.identifier){s.x=t.clientX;s.y=t.clientY}},{passive:false});
 const tend=e=>{for(const t of e.changedTouches){if(movS&&movS.id===t.identifier)movS=null;if(aimS&&aimS.id===t.identifier)aimS=null}};
 cv.addEventListener('touchend',tend);cv.addEventListener('touchcancel',tend);
-document.getElementById('bb').addEventListener('touchstart',e=>{e.preventDefault();qb=true},{passive:false});
-document.getElementById('bp').addEventListener('touchstart',e=>{e.preventDefault();bsel=bsel%3+1},{passive:false});
+document.getElementById('bb').addEventListener('touchstart',e=>{e.preventDefault();bmode=!bmode},{passive:false});
+document.getElementById('bp').addEventListener('touchstart',e=>{e.preventDefault();if(bsel==3&&!brot)brot=1;else{brot=0;bsel=bsel%3+1}},{passive:false});
 document.getElementById('be').addEventListener('touchstart',e=>{e.preventDefault();edit?endEdit(true):startEdit()},{passive:false});
 document.getElementById('sw').addEventListener('touchstart',e=>{e.preventDefault();if(my&&my[3].length>1)wsel=(my[3].indexOf(my[4])+1)%my[3].length},{passive:false});
 setInterval(()=>{if(!playing||dead||!ws||ws.readyState!==1)return;
@@ -233,6 +236,6 @@ setInterval(()=>{if(!playing||dead||!ws||ws.readyState!==1)return;
  if(touchMode){const a=movS?sv(movS):[0,0,0],b=aimS?sv(aimS):[0,0,0];dx=a[2]<.15?0:a[0];dy=a[2]<.15?0:a[1];if(b[2]>.15)aimA=Math.atan2(b[1],b[0]);sh=b[2]>.5}
  else{dx=(keys.d?1:0)-(keys.a?1:0);dy=(keys.s?1:0)-(keys.w?1:0);sh=mouse.down}
  const m={t:'in',dx,dy,ang:+aimA.toFixed(3),sh};
- if(qb){m.b=bsel;qb=false}if(wsel>=0){m.w=wsel;wsel=-1}ws.send(JSON.stringify(m))},33);
+ if(bmode||edit){m.sh=false;if(sh&&!edit){m.b=bsel;m.r=brot}}if(wsel>=0){m.w=wsel;wsel=-1}ws.send(JSON.stringify(m))},33);
 connect();requestAnimationFrame(frame);
 </script></body></html>
