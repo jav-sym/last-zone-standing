@@ -2,6 +2,43 @@
 <style>
 html,body{margin:0;height:100%;background:#0b1117;overflow:hidden;font-family:system-ui,sans-serif}
 canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none}
+
+/* ---- home screen ---- */
+#ov.pink,#ov.home{background:linear-gradient(180deg,#7c3aed 0%,#c026d3 42%,#f472b6 74%,#fb9ad0 100%)}
+#ov.home{padding:0;justify-content:flex-start;align-items:stretch;text-align:left}
+#ov.home>#t,#ov.home>#s{display:none}
+#ov.home::after{content:'';position:absolute;left:0;right:0;bottom:0;height:22%;background:linear-gradient(#80808f,#4a4a57);pointer-events:none}
+#ov.home #menu{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;width:100%;height:100%;box-sizing:border-box;padding:2.2vmin 4vmin;align-items:stretch}
+#tabs{display:flex;gap:2.4vmin;align-items:center;flex-wrap:wrap;font-weight:800;font-size:clamp(12px,2.6vmin,22px);color:#fff;text-shadow:0 2px 0 #0005}
+.tab{cursor:pointer;padding:.45em .9em;border-radius:6px;user-select:none}
+.tab.on{background:#fff;color:#111;text-shadow:none}
+#soon{margin-left:auto;font-size:.8em;opacity:.9;min-height:1em}
+#mbody{display:grid;grid-template-columns:1fr 1.1fr 1fr;align-items:center;gap:2vmin;min-height:0}
+#mleft{display:flex;flex-direction:column;gap:.8vmin;color:#fff;text-shadow:0 2px 0 #0005;align-self:start;padding-top:2vmin}
+.era{font-size:clamp(11px,2.3vmin,18px);font-weight:800;color:#a5f3fc;font-style:italic}
+.season{font-size:clamp(20px,5vmin,44px);font-weight:900;font-style:italic;line-height:1}
+.lvl{display:flex;align-items:center;gap:1vmin;font-size:clamp(10px,2vmin,16px);font-weight:800}
+.lvl i{display:block;height:1.2vmin;min-height:6px;width:12vmin;background:#0004;border-radius:4px;overflow:hidden}.lvl i b{display:block;height:100%;width:35%;background:#a5f3fc}
+.how{margin-top:2vmin;font-size:clamp(10px,1.8vmin,14px);line-height:1.5;opacity:.95;max-width:34ch}
+#mcenter{display:flex;align-items:flex-end;justify-content:center;position:relative;height:100%}
+#mcenter::before{content:'';position:absolute;bottom:3%;width:40%;height:5%;background:#0004;border-radius:50%}
+#hero{height:min(48vh,400px);aspect-ratio:40/56;image-rendering:pixelated;animation:bob 2.2s ease-in-out infinite;position:relative;margin-bottom:5%}
+@keyframes bob{50%{transform:translateY(-1.4vmin)}}
+#mright{display:flex;flex-direction:column;gap:1.6vmin;align-self:center}
+.banner{background:linear-gradient(135deg,#f97316,#ea580c);border:2px solid #fff;border-radius:8px;padding:1vmin 1.6vmin;font-weight:900;font-style:italic;font-size:clamp(11px,2.2vmin,18px);display:flex;align-items:center;justify-content:space-between;text-shadow:0 2px 0 #0005}
+.banner span{font-size:clamp(20px,4.4vmin,36px)}
+.panel{background:rgba(255,235,247,.55);border-radius:10px;padding:1.8vmin;display:flex;flex-direction:column;gap:1.1vmin;color:#fff;align-items:stretch;text-align:center}
+#mname{font-weight:900;font-size:clamp(13px,2.8vmin,22px);letter-spacing:.5px;text-shadow:0 2px 0 #0005}
+#ov.home .panel input{margin:0;width:auto;font-size:clamp(12px,2.2vmin,18px);padding:.6em;text-transform:none;letter-spacing:0;background:#fff;color:#111;border:2px solid #fff}
+#ov.home .panel #cd{text-transform:uppercase;letter-spacing:.3em}
+#ov.home .panel button{margin:0;width:100%;border-radius:6px;font-weight:900;border:2px solid #111;box-shadow:0 3px 0 #0004;padding:.55em;font-size:clamp(13px,2.6vmin,22px);cursor:pointer}
+#ov.home .chg{background:#9ca3af;color:#fff;font-size:clamp(10px,1.9vmin,15px)!important}
+#ov.home .play{background:#fde047;color:#111}
+#modes{display:none;flex-direction:column;gap:.8vmin}#modes.open{display:flex}
+#ov.home #modes button{background:#fff;color:#111;font-size:clamp(10px,1.9vmin,15px);padding:.45em}
+#err{color:#fee2e2;min-height:1.1em;font-size:clamp(10px,1.8vmin,14px);margin:0}
+@media (max-height:480px){.how{display:none}#hero{height:min(52vh,400px)}}
+@media (max-width:700px) and (orientation:landscape){#mbody{grid-template-columns:1fr 1fr 1.2fr}}
 #rot{position:fixed;inset:0;z-index:99;display:none;align-items:center;justify-content:center;flex-direction:column;background:#0b1117;color:#fff;font-size:22px;text-align:center;padding:24px}
 #rot span{font-size:64px;margin-bottom:10px}
 @media (max-height:480px){#code{font-size:34px;margin:0}#ov h1{font-size:26px}#ov p{font-size:13px;margin:2px}#ov input,#ov button{margin-top:8px;padding:8px 18px;font-size:16px}#tb{top:calc(116px + env(safe-area-inset-top,0px));gap:8px}#tb button{width:50px;height:50px;font-size:22px}}
@@ -27,13 +64,22 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 <div id="tb"><button id="bb">🔨</button><button id="bp">🔁</button><button id="be">✏️</button><button id="sw">⇄</button></div>
 <div id="ov"><h1 id="t">Shooter Realm</h1><p id="s">Battle royale: last one standing wins.</p>
 <div id="menu">
-<p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>1-4</b> weapon · <b>Q</b> build mode (or <b>Z/X/C</b> wall / floor / ramp) · <b>Click</b> build · <b>R</b> flip ramp · <b>E</b> edit a wall</p>
-<p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🔨 build mode (push the right stick to build), 🔁 changes piece, ✏️ edits a wall, ⇄ swaps weapon.</p>
-<input id="nm" maxlength="14" placeholder="Your name">
-<button id="bSolo" disabled>Play solo (join queue)</button>
-<button id="bCreate" class="alt" disabled>Create custom match</button>
-<div class="row"><input id="cd" maxlength="5" placeholder="CODE"><button id="bJoin" class="alt" disabled>Join with code</button></div>
-<p id="err"></p></div>
+<nav id="tabs"><b class="tab on" data-t="play">PLAY</b><b class="tab" data-t="locker">LOCKER</b><b class="tab" data-t="shop">SHOP</b><b class="tab" data-t="pass">EVENT PASS</b><b class="tab" data-t="compete">COMPETE</b><b class="tab" data-t="stars">STARS</b><span id="soon"></span></nav>
+<div id="mbody">
+ <div id="mleft"><div class="era">NEW ERA</div><div class="season">SEASON 1</div><div class="lvl">LVL 1 <i><b></b></i> NEXT LVL 2</div>
+  <div class="how"><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>1-4</b> weapon<br><b>Q</b> build mode (<b>Z/X/C</b> wall / floor / ramp) · <b>R</b> flip ramp · <b>E</b> edit<br>📱 Landscape: left thumb moves, right thumb aims and fires.</div></div>
+ <div id="mcenter"><canvas id="hero" width="40" height="56"></canvas></div>
+ <div id="mright">
+  <div class="banner"><div>NEW<br>WEAPONS!</div><span>🔫</span></div>
+  <div class="panel"><div id="mname">FREE FIGHT</div>
+   <input id="nm" maxlength="14" placeholder="Your name">
+   <input id="cd" maxlength="5" placeholder="MATCH CODE" style="display:none">
+   <button id="bMode" class="chg">CHANGE MODE</button>
+   <div id="modes"><button data-m="free">Free Fight (queue, bots fill in)</button><button data-m="create">Create custom match</button><button data-m="join">Join with code</button></div>
+   <button id="bPlay" class="play" disabled>PLAY</button>
+   <p id="err"></p></div>
+ </div>
+</div></div>
 <div id="lobby" style="display:none"><div id="code"></div><p id="lh">Share this code. Custom matches have no bots.</p><div id="plist"></div>
 <button id="bStart">Start match</button><button id="bCopy" class="alt">Copy invite link</button><button id="bLeaveL" class="alt">Leave</button></div>
 <div id="after" style="display:none"><button id="bAgain">Play again</button><button id="bLeaveA" class="alt">Menu</button></div>
@@ -59,24 +105,36 @@ let keys={},mouse={x:0,y:0,down:false},qb=false,wsel=-1,aimA=0,touchMode=false,m
 const $=id=>document.getElementById(id);
 let mode='solo',code='';
 const send=o=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))};
-function panel(n){$('menu').style.display=n=='menu'?'':'none';$('lobby').style.display=n=='lobby'?'':'none';$('after').style.display=n=='after'?'':'none';ov.style.display=n=='none'?'none':'flex'}
+function panel(n){$('menu').style.display=n=='menu'?'':'none';$('lobby').style.display=n=='lobby'?'':'none';$('after').style.display=n=='after'?'':'none';ov.style.display=n=='none'?'none':'flex';ov.classList.toggle('home',n=='menu');ov.classList.toggle('pink',n=='lobby')}
 function title(t,x){$('t').textContent=t;$('s').textContent=x}
 function connect(){
  ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host);
- ws.onopen=()=>{['bSolo','bCreate','bJoin'].forEach(i=>$(i).disabled=false)};
+ ws.onopen=()=>{$('bPlay').disabled=false};
  ws.onmessage=ev=>handle(JSON.parse(ev.data));
  ws.onclose=()=>{playing=false;title('Disconnected','The connection to the server was lost. Reload the page to reconnect.');panel('msg')}}
 function fs(){if(matchMedia('(pointer:coarse)').matches){const d=document.documentElement;(d.requestFullscreen?d.requestFullscreen():Promise.reject()).then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{})}}
 const nm=()=>$('nm').value;
-$('bSolo').onclick=()=>{fs();$('err').textContent='';send({t:'solo',name:nm()})};
-$('bCreate').onclick=()=>{fs();$('err').textContent='';send({t:'create',name:nm()})};
-$('bJoin').onclick=()=>{fs();$('err').textContent='';send({t:'join',name:nm(),code:$('cd').value})};
+let curMode='free';const MN={free:'FREE FIGHT',create:'CUSTOM MATCH',join:'JOIN MATCH'};
+function setMode(m){curMode=m;$('mname').textContent=MN[m];$('cd').style.display=m=='join'?'':'none';$('modes').classList.remove('open')}
+$('bMode').onclick=()=>$('modes').classList.toggle('open');
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('bPlay').onclick=()=>{fs();$('err').textContent='';if(curMode=='free')send({t:'solo',name:nm()});else if(curMode=='create')send({t:'create',name:nm()});else send({t:'join',name:nm(),code:$('cd').value})};
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{if(t.dataset.t=='play')return;const x=$('soon');x.textContent=t.textContent+' is coming soon';clearTimeout(x._t);x._t=setTimeout(()=>{x.textContent=''},2000)});
+// pixel hero (40x56 pixels, scaled up by CSS)
+(function(){const g=$('hero').getContext('2d');
+ const P=[[12,2,16,6,'#c2410c'],[10,6,4,11,'#c2410c'],[26,6,4,9,'#9a3412'],[14,4,7,2,'#ea580c'],
+  [13,8,14,12,'#4ade80'],[13,16,14,4,'#22c55e'],[15,12,5,4,'#14532d'],[22,12,5,4,'#14532d'],[16,13,3,2,'#ef4444'],[23,13,3,2,'#ef4444'],[18,18,6,1,'#14532d'],
+  [12,20,16,16,'#1e293b'],[12,20,16,3,'#334155'],[19,23,2,13,'#0f172a'],[12,34,16,2,'#0b1117'],
+  [8,21,5,13,'#1e293b'],[8,34,5,4,'#4ade80'],[27,21,5,13,'#1e293b'],[27,34,5,4,'#4ade80'],
+  [13,36,6,13,'#111827'],[21,36,6,13,'#111827'],[12,48,8,5,'#0b1117'],[20,48,8,5,'#0b1117'],
+  [31,9,4,27,'#22d3ee'],[32,9,1,27,'#a5f3fc'],[32,6,2,3,'#a5f3fc'],[29,34,8,3,'#0e7490']];
+ for(const r of P){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}})();
 $('bStart').onclick=()=>send({t:'start'});
 $('bAgain').onclick=()=>send({t:'again'});
 const toMenu=()=>{send({t:'leave'});playing=false;dead=false;banner='';ents.clear();title('Shooter Realm','Battle royale: last one standing wins.');panel('menu')};
 $('bLeaveL').onclick=toMenu;$('bLeaveA').onclick=toMenu;
 $('bCopy').onclick=()=>{const u=location.origin+'/?c='+code;if(navigator.clipboard)navigator.clipboard.writeText(u).catch(()=>{});$('bCopy').textContent='Copied!';setTimeout(()=>$('bCopy').textContent='Copy invite link',1500)};
-const qc=new URLSearchParams(location.search).get('c');if(qc)$('cd').value=qc.toUpperCase().slice(0,5);
+const qc=new URLSearchParams(location.search).get('c');if(qc){$('cd').value=qc.toUpperCase().slice(0,5);setMode('join')}
 
 function handle(m){
  switch(m.t){
@@ -237,5 +295,5 @@ setInterval(()=>{if(!playing||dead||!ws||ws.readyState!==1)return;
  else{dx=(keys.d?1:0)-(keys.a?1:0);dy=(keys.s?1:0)-(keys.w?1:0);sh=mouse.down}
  const m={t:'in',dx,dy,ang:+aimA.toFixed(3),sh};
  if(bmode||edit){m.sh=false;if(sh&&!edit){m.b=bsel;m.r=brot}}if(wsel>=0){m.w=wsel;wsel=-1}ws.send(JSON.stringify(m))},33);
-connect();requestAnimationFrame(frame);
+ov.classList.add('home');connect();requestAnimationFrame(frame);
 </script></body></html>
