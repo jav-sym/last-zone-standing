@@ -6,7 +6,7 @@ canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none
 #rot span{font-size:64px;margin-bottom:10px}
 @media (max-height:480px){#code{font-size:34px;margin:0}#ov h1{font-size:26px}#ov p{font-size:13px;margin:2px}#ov input,#ov button{margin-top:8px;padding:8px 18px;font-size:16px}#tb{top:calc(116px + env(safe-area-inset-top,0px));gap:8px}#tb button{width:50px;height:50px;font-size:22px}}
 @media (orientation:portrait) and (pointer:coarse){#rot{display:flex}}
-#tb{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));top:calc(160px + env(safe-area-inset-top,0px));display:none;flex-direction:column;gap:12px}
+#tb{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));top:calc(160px + env(safe-area-inset-top,0px));display:none;grid-template-columns:repeat(2,auto);gap:8px}
 #ov{overflow:auto}
 #tb button{margin:0;width:64px;height:64px;padding:0;font-size:28px;border-radius:50%;background:#0f172acc;color:#fff;border:2px solid #fff6;touch-action:manipulation}
 #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;background:rgba(5,10,15,.82);text-align:center;padding:20px}
@@ -24,11 +24,11 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="rot"><span>📱↻</span>Rotate your phone to landscape to play</div>
-<div id="tb"><button id="bb">🧱</button><button id="sw">⇄</button></div>
+<div id="tb"><button id="bb">🧱</button><button id="bp">🔁</button><button id="be">✏️</button><button id="sw">⇄</button></div>
 <div id="ov"><h1 id="t">Shooter Realm</h1><p id="s">Battle royale: last one standing wins.</p>
 <div id="menu">
-<p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>Q / Right-click</b> build wall · <b>1-4</b> weapon</p>
-<p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🧱 builds, ⇄ swaps weapon.</p>
+<p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>1-4</b> weapon · <b>Z/X/C</b> pick wall / floor / cone · <b>Q or Right-click</b> build · <b>E</b> edit a wall</p>
+<p>📱 Phone (landscape): left thumb moves, right thumb aims and fires, 🧱 builds, 🔁 changes piece, ✏️ edits a wall, ⇄ swaps weapon.</p>
 <input id="nm" maxlength="14" placeholder="Your name">
 <button id="bSolo" disabled>Play solo (join queue)</button>
 <button id="bCreate" class="alt" disabled>Create custom match</button>
@@ -52,6 +52,8 @@ const LC={pistol:WC[0],shotgun:WC[1],ar:WC[2],sniper:WC[3],heal:'#f43f5e',shield
 const LL={pistol:'G',shotgun:'G',ar:'G',sniper:'G',heal:'+',shield:'S',wood:'W'};
 const STR=[1500,950,520,220,0];
 let ws,M=3200,me=0,trees=[],walls=[],loot=[],ents=new Map(),bul=[],bT=0,storm=[1600,1600,2400,0,0,25],fx=[],names={},my=null,alive=0,feed=[],cam={x:1600,y:1600},banner='',dead=false,deadTxt='',playing=false,last=0,fz=0;
+const T=66,SEG=22,BN=['Wall','Floor','Cone'],BC=[10,5,15],BI=['🧱','⬜','🔺'];
+let floors=[],bsel=1,edit=null;
 let keys={},mouse={x:0,y:0,down:false},qb=false,wsel=-1,aimA=0,touchMode=false,movS=null,aimS=null;const SR=55,tb=document.getElementById('tb');
 
 const $=id=>document.getElementById(id);
@@ -78,7 +80,7 @@ const qc=new URLSearchParams(location.search).get('c');if(qc)$('cd').value=qc.to
 
 function handle(m){
  switch(m.t){
- case 'init':me=m.id;M=m.M;trees=m.trees;names=m.names;ents.clear();walls=[];loot=[];bul=[];feed=[];dead=false;banner='';deadTxt='';mode=m.mode;code=m.code;playing=true;panel('none');break;
+ case 'init':me=m.id;M=m.M;trees=m.trees;names=m.names;ents.clear();walls=[];floors=[];edit=null;loot=[];bul=[];feed=[];dead=false;banner='';deadTxt='';mode=m.mode;code=m.code;playing=true;panel('none');break;
  case 'roster':names=m.n;break;
  case 'feed':feed.push({txt:m.a+' ➜ '+m.b,t:6});if(feed.length>5)feed.shift();break;
  case 'dead':dead=true;deadTxt='Eliminated: #'+m.place+' · '+m.k+' kill'+(m.k==1?'':'s')+' · by '+m.by+'.'+(mode=='solo'?'':' Spectating until the next match.');if(mode=='solo')setTimeout(()=>{if(playing&&dead){title('Eliminated',deadTxt);panel('after')}},2500);break;
@@ -97,7 +99,7 @@ function handle(m){
   for(const a of m.e){const id=a[0];seen.add(id);let e=ents.get(id);if(!e){e={x:a[1],y:a[2],ang:a[3]/100};ents.set(id,e)}e.tx=a[1];e.ty=a[2];e.tang=a[3]/100;e.hp=a[4];e.sh=a[5];e.w=a[6]}
   for(const id of [...ents.keys()])if(!seen.has(id))ents.delete(id);
   bul=m.b;bT=performance.now();for(const f of m.fx)fx.push({x:f[0],y:f[1],t:.3});
-  storm=m.st;fz=m.fz||0;alive=m.al;if(m.w)walls=m.w;if(m.l)loot=m.l;if(m.me)my=m.me;break}
+  storm=m.st;fz=m.fz||0;alive=m.al;if(m.w)walls=m.w;if(m.f)floors=m.f;if(m.l)loot=m.l;if(m.me)my=m.me;break}
  }}
 
 function vis(x,y,mg){return Math.abs(x-cam.x)<W/2/Z+mg&&Math.abs(y-cam.y)<H/2/Z+mg}
@@ -127,14 +129,34 @@ function drawChar(e,id,self,ang,t){
  ctx.fillStyle=WC[w]||'#fff';ctx.fillRect(10,-1,5,2);
  ctx.fillStyle=sk;ctx.beginPath();ctx.arc(12,0,2.8,0,7);ctx.fill();
  ctx.restore()}
+function plan(e,ang,type){const c=Math.cos(ang),s=Math.sin(ang),hor=Math.abs(c)>Math.abs(s),dx=hor?(c<0?-1:1):0,dy=hor?0:(s<0?-1:1),tx=Math.floor(e.x/T)+dx,ty=Math.floor(e.y/T)+dy;
+ if(tx<0||ty<0||(tx+1)*T>M||(ty+1)*T>M)return null;if(type!=1)return[tx*T,ty*T,T,T];
+ const horiz=!hor,x0=horiz?tx*T:(dx>0?(tx+1)*T:tx*T),y0=horiz?(dy>0?(ty+1)*T:ty*T):ty*T;return horiz?[x0,y0-6,T,12]:[x0-6,y0,12,T]}
+function startEdit(){const p=ents.get(me);if(!p)return;let best=null,bd=170;
+ for(const w of walls){if(w[7]!==1)continue;const d=Math.hypot(w[0]+w[2]/2-p.x,w[1]+w[3]/2-p.y);if(d<bd){bd=d;best=w}}
+ if(!best)return;const gid=best[5],horiz=best[2]>best[3],sg=best[6],mask=[0,0,0];
+ for(const w of walls)if(w[5]===gid&&w[7]===1)mask[w[6]]=1;
+ edit={gid,horiz,x0:horiz?best[0]-sg*SEG:best[0]+6,y0:horiz?best[1]+6:best[1]-sg*SEG,mask}}
+function endEdit(ok){if(edit&&ok)send({t:'edit',gid:edit.gid,mask:edit.mask});edit=null}
+function editBox(i){return edit.horiz?[edit.x0+i*SEG,edit.y0-18,SEG,36]:[edit.x0-18,edit.y0+i*SEG,36,SEG]}
+function editClick(cx,cy){const wx=cam.x+(cx-W/2)/Z,wy=cam.y+(cy-H/2)/Z;
+ for(let i=0;i<3;i++){const b=editBox(i);if(wx>=b[0]&&wx<=b[0]+b[2]&&wy>=b[1]&&wy<=b[1]+b[3]){edit.mask[i]^=1;return true}}return false}
+function drawWall(w){const x=w[0],y=w[1],wd=w[2],ht=w[3],hp=w[4],k=w[7];
+ if(k===2){const cx=x+wd/2,cy=y+ht/2,cols=['#67e8f9','#22d3ee','#0891b2','#0e7490'],pts=[[x,y],[x+wd,y],[x+wd,y+ht],[x,y+ht]];
+  for(let i=0;i<4;i++){const a=pts[i],b=pts[(i+1)%4];ctx.fillStyle=hp>60?cols[i]:'#155e75';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(cx,cy);ctx.closePath();ctx.fill()}
+  ctx.strokeStyle='#164e63';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(cx,cy);ctx.moveTo(x+wd,y);ctx.lineTo(cx,cy);ctx.moveTo(x+wd,y+ht);ctx.lineTo(cx,cy);ctx.moveTo(x,y+ht);ctx.lineTo(cx,cy);ctx.stroke();
+  ctx.fillStyle='#fb923c';ctx.fillRect(cx-4,cy-4,8,8);return}
+ if(k===1){ctx.fillStyle=hp>35?'#22d3ee':'#0891b2';ctx.fillRect(x,y,wd,ht);if((w[5]+w[6])%2==0){ctx.fillStyle='#fb923c';ctx.fillRect(x+3,y+3,wd-6,ht-6)}ctx.strokeStyle='#0e7490';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht);return}
+ ctx.fillStyle=hp>150?'#92400e':'#b45309';ctx.fillRect(x,y,wd,ht);ctx.strokeStyle='#451a03';ctx.lineWidth=2;ctx.strokeRect(x,y,wd,ht)}
 function draw(){
  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#10161d';ctx.fillRect(0,0,W,H);
  ctx.save();ctx.translate(W/2,H/2);ctx.scale(Z,Z);ctx.translate(-cam.x,-cam.y);
  ctx.fillStyle='#3a7a40';ctx.fillRect(0,0,M,M);
  ctx.strokeStyle='rgba(0,0,0,.09)';ctx.beginPath();for(let x=0;x<=M;x+=100){ctx.moveTo(x,0);ctx.lineTo(x,M);ctx.moveTo(0,x);ctx.lineTo(M,x)}ctx.stroke();
  ctx.textAlign='center';
+ for(const f of floors){const x=f[0]*T,y=f[1]*T;if(!vis(x+T/2,y+T/2,T))continue;ctx.fillStyle='#d4d4d8';ctx.fillRect(x,y,T,T);ctx.strokeStyle='#a1a1aa';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,T-2,T-2);ctx.strokeStyle='#e4e4e7';ctx.beginPath();ctx.moveTo(x+T/2,y);ctx.lineTo(x+T/2,y+T);ctx.moveTo(x,y+T/2);ctx.lineTo(x+T,y+T/2);ctx.stroke()}
  for(const l of loot){if(!vis(l[0],l[1],30))continue;ctx.fillStyle=LC[l[2]];ctx.fillRect(l[0]-9,l[1]-9,18,18);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(l[0]-9,l[1]-9,18,18);ctx.fillStyle='#000';ctx.font='bold 11px sans-serif';ctx.fillText(LL[l[2]],l[0],l[1]+4)}
- for(const w of walls){if(!vis(w[0],w[1],200))continue;ctx.fillStyle=w[4]>150?'#92400e':'#b45309';ctx.fillRect(w[0],w[1],w[2],w[3]);ctx.strokeStyle='#451a03';ctx.lineWidth=2;ctx.strokeRect(w[0],w[1],w[2],w[3])}
+ for(const w of walls){if(!vis(w[0],w[1],200))continue;drawWall(w)}
  const aim=aimA;
  const tt=performance.now()/1000;
  [...ents].filter(([id,e])=>vis(e.x,e.y,60)).sort((p,q)=>p[1].y-q[1].y).forEach(([id,e])=>{
@@ -151,6 +173,8 @@ function draw(){
  ctx.strokeStyle='#c4b5fd';ctx.lineWidth=4;ctx.beginPath();ctx.arc(sx,sy,sr,0,7);ctx.stroke();
  if(!shr){ctx.setLineDash([14,14]);ctx.strokeStyle='#fff8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,STR[ph]??0,0,7);ctx.stroke();ctx.setLineDash([])}
  if(inS){const a=Math.atan2(sy-sme.y,sx-sme.x),q=1/Z;ctx.save();ctx.translate(sme.x+Math.cos(a)*80*q,sme.y+Math.sin(a)*80*q);ctx.rotate(a);ctx.scale(q,q);ctx.fillStyle='#fde047';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-10,-12);ctx.lineTo(-10,12);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
+ if(sme&&!dead&&!edit){const pl=plan(sme,aimA,bsel);if(pl){ctx.globalAlpha=.45;ctx.fillStyle=(my&&my[2]>=BC[bsel-1])?'#4ade80':'#f87171';ctx.fillRect(pl[0],pl[1],pl[2],pl[3]);ctx.globalAlpha=1}}
+ if(edit){for(let i=0;i<3;i++){const b=editBox(i);ctx.fillStyle=edit.mask[i]?'rgba(34,211,238,.85)':'rgba(15,23,42,.65)';ctx.fillRect(b[0],b[1],b[2],b[3]);ctx.strokeStyle='#fde047';ctx.lineWidth=2;ctx.setLineDash(edit.mask[i]?[]:[4,3]);ctx.strokeRect(b[0],b[1],b[2],b[3]);ctx.setLineDash([])}}
  ctx.restore();
  if(touchMode)for(const s of [movS,aimS]){if(!s)continue;const v=sv(s);ctx.strokeStyle='#fff6';ctx.lineWidth=3;ctx.beginPath();ctx.arc(s.ox,s.oy,SR,0,7);ctx.stroke();ctx.fillStyle='#fff7';ctx.beginPath();ctx.arc(s.ox+v[0]*SR,s.oy+v[1]*SR,24,0,7);ctx.fill()}
  if(inS){const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.65);g.addColorStop(0,'rgba(220,38,38,0)');g.addColorStop(1,'rgba(220,38,38,.45)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
@@ -163,7 +187,8 @@ function draw(){
  if(my&&!dead){const bw=240,bx=Wd/2-bw/2,by=Hd-50-sB;
   ctx.fillStyle='#0008';ctx.fillRect(bx,by,bw,14);ctx.fillRect(bx,by-18,bw,10);
   ctx.fillStyle='#4ade80';ctx.fillRect(bx,by,bw*Math.max(0,my[0])/100,14);ctx.fillStyle='#38bdf8';ctx.fillRect(bx,by-18,bw*my[1]/100,10);
-  my[3].forEach((k,i)=>{const x=Wd/2-my[3].length*45+i*90+4,on=k===my[4];ctx.fillStyle=on?'#fff':'#0008';ctx.fillRect(x,by-70,82,36);ctx.fillStyle=on?'#000':WC[k];ctx.font='bold 13px sans-serif';ctx.fillText((i+1)+' '+WN[k],x+41,by-47)})}
+  my[3].forEach((k,i)=>{const x=Wd/2-my[3].length*45+i*90+4,on=k===my[4];ctx.fillStyle=on?'#fff':'#0008';ctx.fillRect(x,by-70,82,36);ctx.fillStyle=on?'#000':WC[k];ctx.font='bold 13px sans-serif';ctx.fillText((i+1)+' '+WN[k],x+41,by-47)});
+  ctx.font='13px sans-serif';ctx.fillStyle='#fff';ctx.fillText(edit?'EDIT: tap segments (or 1-3) · E confirm · Esc cancel':'Build: '+BN[bsel-1]+' ('+BC[bsel-1]+' wood) · Z wall X floor C cone · Q build · E edit',Wd/2,by-80)}
  const mm=130,mx0=Wd-mm-14-sR,my0=14+sT,k=mm/M,zx=mx0+sx*k,zy=my0+sy*k;
  ctx.fillStyle='#10161dcc';ctx.fillRect(mx0,my0,mm,mm);
  ctx.save();ctx.beginPath();ctx.rect(mx0,my0,mm,mm);ctx.clip();
@@ -177,33 +202,37 @@ function draw(){
  if(banner){ctx.font='bold 40px sans-serif';ctx.fillText(banner,Wd/2,Hd/2-60)}
  else if(dead){ctx.font='bold 20px sans-serif';ctx.fillText(deadTxt,Wd/2,Hd-60)}
  ctx.restore()}
-function frame(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;
+function frame(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;$('bb').textContent=BI[bsel-1];
  for(const [id,e] of ents){const k=Math.min(1,dt*(id===me?22:14));e.x+=(e.tx-e.x)*k;e.y+=(e.ty-e.y)*k;e.ang+=ad(e.tang-e.ang)*Math.min(1,dt*18)}
  const s=ents.get(me);if(s){cam.x=s.x;cam.y=s.y}
  for(const f of fx)f.t-=dt;fx=fx.filter(f=>f.t>0);for(const f of feed)f.t-=dt;feed=feed.filter(f=>f.t>0);
  draw();requestAnimationFrame(frame)}
 
 addEventListener('keydown',e=>{if(e.target.tagName=='INPUT')return;setTouch(false);const k=e.key.toLowerCase();if(k.length==1&&'wasd'.includes(k))keys[k]=true;
- if(k=='q')qb=true;if(k.length==1&&'1234'.includes(k)&&my&&my[3][+k-1]!=null)wsel=+k-1});
+ if(edit){if(k=='1'||k=='2'||k=='3')edit.mask[+k-1]^=1;if(k=='e'||k=='enter')endEdit(true);if(k=='escape')endEdit(false);return}
+ if(k=='q')qb=true;if(k=='z')bsel=1;if(k=='x')bsel=2;if(k=='c')bsel=3;if(k=='e')startEdit();
+ if(k.length==1&&'1234'.includes(k)&&my&&my[3][+k-1]!=null)wsel=+k-1});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 addEventListener('blur',()=>{keys={};mouse.down=false});
 cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2)});
-cv.addEventListener('mousedown',e=>{if(touchMode)return;mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2);if(e.button==2)qb=true;else mouse.down=true});
+cv.addEventListener('mousedown',e=>{if(touchMode)return;if(edit){if(e.button==0)editClick(e.clientX,e.clientY);return}mouse.x=e.clientX;mouse.y=e.clientY;aimA=Math.atan2(mouse.y-H/2,mouse.x-W/2);if(e.button==2)qb=true;else mouse.down=true});
 addEventListener('mouseup',()=>{mouse.down=false});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-function setTouch(v){touchMode=v;tb.style.display=v?'flex':'none';if(!v){movS=aimS=null}}
+function setTouch(v){touchMode=v;tb.style.display=v?'grid':'none';if(!v){movS=aimS=null}}
 function sv(s){const dx=s.x-s.ox,dy=s.y-s.oy,l=Math.hypot(dx,dy),m=Math.min(1,l/SR);return l?[dx/l*m,dy/l*m,m]:[0,0,0]}
-cv.addEventListener('touchstart',e=>{e.preventDefault();setTouch(true);for(const t of e.changedTouches){const s={id:t.identifier,ox:t.clientX,oy:t.clientY,x:t.clientX,y:t.clientY};if(t.clientX<W/2){if(!movS)movS=s}else if(!aimS)aimS=s}},{passive:false});
+cv.addEventListener('touchstart',e=>{e.preventDefault();setTouch(true);for(const t of e.changedTouches){if(edit&&editClick(t.clientX,t.clientY))continue;const s={id:t.identifier,ox:t.clientX,oy:t.clientY,x:t.clientX,y:t.clientY};if(t.clientX<W/2){if(!movS)movS=s}else if(!aimS)aimS=s}},{passive:false});
 cv.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)for(const s of [movS,aimS])if(s&&s.id===t.identifier){s.x=t.clientX;s.y=t.clientY}},{passive:false});
 const tend=e=>{for(const t of e.changedTouches){if(movS&&movS.id===t.identifier)movS=null;if(aimS&&aimS.id===t.identifier)aimS=null}};
 cv.addEventListener('touchend',tend);cv.addEventListener('touchcancel',tend);
 document.getElementById('bb').addEventListener('touchstart',e=>{e.preventDefault();qb=true},{passive:false});
+document.getElementById('bp').addEventListener('touchstart',e=>{e.preventDefault();bsel=bsel%3+1},{passive:false});
+document.getElementById('be').addEventListener('touchstart',e=>{e.preventDefault();edit?endEdit(true):startEdit()},{passive:false});
 document.getElementById('sw').addEventListener('touchstart',e=>{e.preventDefault();if(my&&my[3].length>1)wsel=(my[3].indexOf(my[4])+1)%my[3].length},{passive:false});
 setInterval(()=>{if(!playing||dead||!ws||ws.readyState!==1)return;
  let dx,dy,sh;
  if(touchMode){const a=movS?sv(movS):[0,0,0],b=aimS?sv(aimS):[0,0,0];dx=a[2]<.15?0:a[0];dy=a[2]<.15?0:a[1];if(b[2]>.15)aimA=Math.atan2(b[1],b[0]);sh=b[2]>.5}
  else{dx=(keys.d?1:0)-(keys.a?1:0);dy=(keys.s?1:0)-(keys.w?1:0);sh=mouse.down}
  const m={t:'in',dx,dy,ang:+aimA.toFixed(3),sh};
- if(qb){m.b=1;qb=false}if(wsel>=0){m.w=wsel;wsel=-1}ws.send(JSON.stringify(m))},33);
+ if(qb){m.b=bsel;qb=false}if(wsel>=0){m.w=wsel;wsel=-1}ws.send(JSON.stringify(m))},33);
 connect();requestAnimationFrame(frame);
 </script></body></html>
