@@ -5,6 +5,7 @@ const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 3000;
 const M = 3200, HZ = 30, DT = 1 / HZ, TOTAL = 25, MAX_HUMANS = 20;
 const QUEUE_SECS = +process.env.QUEUE_SECS || 20;   // solo queue waits this long for more players
+const T = 66, SEG = 22;                           // build grid: one tile = 66px, a wall is 3 segments of 22px
 const FREEZE = 4;                                   // everyone (bots too) is frozen this long when a match begins
 const R = Math.random, rr = (a, b) => a + R() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ad = a => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
@@ -87,11 +88,11 @@ function mkEnt(bot, name, c) {
   e.name = name || 'Bot' + e.id; e.tx = e.x; e.ty = e.y; return e;
 }
 function addHuman(c) {
-  const e = mkEnt(false, c.name, c); c.ent = e; c.wv = c.lv = 0; c.notified = false; G.ents.push(e);
+  const e = mkEnt(false, c.name, c); c.ent = e; c.wv = c.lv = c.fv = 0; c.notified = false; G.ents.push(e);
   send(c, { t: 'init', id: e.id, mode: ROOM.mode, code: ROOM.code, M, trees: G.trees.map(t => [Math.round(t.x), Math.round(t.y), Math.round(t.r)]), names: namesMap() });
 }
 function startMatch(room) {
-  room.G = { t: 0, ents: [], trees: [], walls: [], loot: [], bul: [], fx: [], wv: 1, lv: 1, noHuman: 0, freeze: FREEZE,
+  room.G = { t: 0, ents: [], trees: [], walls: [], loot: [], bul: [], fx: [], wv: 1, lv: 1, noHuman: 0, freeze: FREEZE, groups: {}, gid: 0, floors: [], fv: 1,
     storm: { cx: rr(1300, 1900), cy: rr(1300, 1900), r: 2400, from: 2400, to: 1500, ph: 0, tm: 0, state: 'wait' } };
   enter(room);
   for (let i = 0; i < 150; i++) G.trees.push({ x: rr(60, M - 60), y: rr(60, M - 60), r: rr(20, 30) });
@@ -136,11 +137,55 @@ function dmg(e, d, by, label) {
   const wk = e.w[(R() * e.w.length) | 0]; if (wk !== 'pistol') addLoot(e.x + 16, e.y, wk);
   broadcast({ t: 'feed', a: e.killerName, b: e.name });
 }
-function build(e) {
-  if (e.bc > 0 || e.wood < 10) return; e.bc = .25; e.wood -= 10;
-  const c = Math.cos(e.ang), s = Math.sin(e.ang);
-  if (Math.abs(c) > Math.abs(s)) { const X = e.x + Math.sign(c) * 56; G.walls.push({ x: X - 7, y: e.y - 45, w: 14, h: 90, hp: 200 }); }
-  else { const Y = e.y + Math.sign(s) * 56; G.walls.push({ x: e.x - 45, y: Y - 7, w: 90, h: 14, hp: 200 }); }
+const COST = { 1: 10, 2: 5, 3: 15 };   // 1 wall, 2 floor, 3 cone (wood)
+function hitsEntity(x, y, w, h) {
+  for (const o of G.ents) {
+    if (o.dead) continue;
+    const cx = clamp(o.x, x, x + w), cy = clamp(o.y, y, y + h);
+    if (Math.hypot(o.x - cx, o.y - cy) < 16) return true;
+  }
+  return false;
+}
+function segRect(g, i) {
+  return g.horiz ? { x: g.x0 + i * SEG, y: g.y0 - 6, w: SEG, h: 12 } : { x: g.x0 - 6, y: g.y0 + i * SEG, w: 12, h: SEG };
+}
+// Pieces snap to a grid. The target is the tile in front of you (the way you're aiming, snapped to up/down/left/right).
+function build(e, type) {
+  const cost = COST[type]; if (!cost || e.bc > 0 || e.wood < cost) return;
+  const c = Math.cos(e.ang), s = Math.sin(e.ang), hor = Math.abs(c) > Math.abs(s);
+  const dx = hor ? (c < 0 ? -1 : 1) : 0, dy = hor ? 0 : (s < 0 ? -1 : 1);
+  const tx = Math.floor(e.x / T) + dx, ty = Math.floor(e.y / T) + dy;
+  if (tx < 0 || ty < 0 || (tx + 1) * T > M || (ty + 1) * T > M) return;
+  if (type === 1) {                                   // wall on the far edge of the target tile
+    const horiz = !hor;
+    const x0 = horiz ? tx * T : (dx > 0 ? (tx + 1) * T : tx * T);
+    const y0 = horiz ? (dy > 0 ? (ty + 1) * T : ty * T) : ty * T;
+    if (Object.values(G.groups).some(g => g.horiz === horiz && g.x0 === x0 && g.y0 === y0)) return;
+    const full = horiz ? [x0, y0 - 6, T, 12] : [x0 - 6, y0, 12, T];
+    if (hitsEntity(...full)) return;
+    const gid = ++G.gid, g = G.groups[gid] = { x0, y0, horiz, owner: e.id };
+    for (let i = 0; i < 3; i++) G.walls.push({ ...segRect(g, i), hp: 70, gid, seg: i, k: 1 });
+    G.wv++;
+  } else if (type === 2) {                            // floor tile: walkable, bullets pass
+    if (G.floors.some(f => f.tx === tx && f.ty === ty) || G.floors.length >= 400) return;
+    G.floors.push({ tx, ty }); G.fv++;
+  } else {                                            // cone: a solid pyramid that fills the tile
+    if (hitsEntity(tx * T, ty * T, T, T)) return;
+    G.walls.push({ x: tx * T, y: ty * T, w: T, h: T, hp: 200, k: 2 }); G.wv++;
+  }
+  e.bc = .25; e.wood -= cost;
+}
+// Edit: the owner opens or closes the 3 segments of one of their walls.
+function editWall(e, gid, mask) {
+  const g = G.groups[gid]; if (!g || g.owner !== e.id || !Array.isArray(mask)) return;
+  const cx = g.horiz ? g.x0 + T / 2 : g.x0, cy = g.horiz ? g.y0 : g.y0 + T / 2;
+  if (Math.hypot(e.x - cx, e.y - cy) > 260) return;
+  for (let i = 0; i < 3; i++) {
+    const idx = G.walls.findIndex(w => w.gid === gid && w.seg === i), want = !!mask[i];
+    if (idx >= 0 && !want) G.walls.splice(idx, 1);
+    else if (idx < 0 && want) { const r = segRect(g, i); if (!hitsEntity(r.x, r.y, r.w, r.h)) G.walls.push({ ...r, hp: 70, gid, seg: i, k: 1 }); }
+  }
+  if (!G.walls.some(w => w.gid === gid)) delete G.groups[gid];
   G.wv++;
 }
 function ai(b, dt) {
@@ -171,7 +216,7 @@ function update(dt) {
 
   for (const e of G.ents) {
     if (e.dead) continue; e.cd -= dt; e.bc -= dt; let mx = 0, my = 0;
-    if (!e.bot) { mx = e.in.dx; my = e.in.dy; if (e.in.sh) shoot(e); if (e.wb) { e.wb = false; build(e); } }
+    if (!e.bot) { mx = e.in.dx; my = e.in.dy; if (e.in.sh) shoot(e); if (e.wb) { const bt = e.wb; e.wb = false; build(e, bt); } }
     else [mx, my] = ai(e, dt);
     const sp = e.bot ? 165 : 230; e.x += mx * sp * dt; e.y += my * sp * dt; resolve(e, 14);
     for (let i = G.loot.length - 1; i >= 0; i--) {
@@ -215,7 +260,8 @@ function snapshot() {
   G.fx = [];
   for (const c of ROOM.clients) {
     if (!c.ent) continue; const m = { ...base };
-    if (c.wv !== G.wv) { m.w = G.walls.map(w => [Math.round(w.x), Math.round(w.y), w.w, w.h, Math.ceil(w.hp)]); c.wv = G.wv; }
+    if (c.wv !== G.wv) { m.w = G.walls.map(w => [Math.round(w.x), Math.round(w.y), w.w, w.h, Math.ceil(w.hp), w.gid || 0, w.seg || 0, w.k || 0]); c.wv = G.wv; }
+    if (c.fv !== G.fv) { m.f = G.floors.map(f => [f.tx, f.ty]); c.fv = G.fv; }
     if (c.lv !== G.lv) { m.l = G.loot.map(l => [Math.round(l.x), Math.round(l.y), l.t]); c.lv = G.lv; }
     const e = c.ent;
     if (!e.dead) m.me = [Math.ceil(e.hp), Math.ceil(e.sh), e.wood, e.w.map(k => WK.indexOf(k)), WK.indexOf(e.cw), e.k];
@@ -264,13 +310,15 @@ wss.on('connection', ws => {
       leaveRoom(c); queueJoin(c);
     } else if (m.t === 'leave') {
       leaveRoom(c);
+    } else if (m.t === 'edit' && room && room.phase === 'play' && c.ent && !c.ent.dead) {
+      enter(room); editWall(c.ent, m.gid | 0, m.mask);
     } else if (m.t === 'in') {
       const e = c.ent; if (!e || e.dead || !room || room.phase !== 'play') return;
       let dx = clamp(+m.dx || 0, -1, 1), dy = clamp(+m.dy || 0, -1, 1); const l = Math.hypot(dx, dy);
       if (l > 1) { dx /= l; dy /= l; }
       e.in = { dx, dy, sh: !!m.sh };
       if (Number.isFinite(+m.ang)) e.ang = +m.ang;
-      if (m.b) e.wb = true;
+      if (m.b) e.wb = [1, 2, 3].includes(m.b | 0) ? m.b | 0 : 1;
       if (Number.isInteger(m.w) && e.w[m.w]) e.cw = e.w[m.w];
     }
   });
