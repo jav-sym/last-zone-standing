@@ -5,7 +5,7 @@ const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 3000;
 const M = 3200, HZ = 30, DT = 1 / HZ, TOTAL = 25, MAX_HUMANS = 20;
 const QUEUE_SECS = +process.env.QUEUE_SECS || 20;   // solo queue waits this long for more players
-const T = 66, SEG = 22;                           // build grid: one tile = 66px, a wall is 3 segments of 22px
+const T = 90, SEG = 30;                           // build grid: one tile = 90px, a wall is 3 segments of 30px
 const FREEZE = 4;                                   // everyone (bots too) is frozen this long when a match begins
 const R = Math.random, rr = (a, b) => a + R() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ad = a => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
@@ -137,7 +137,7 @@ function dmg(e, d, by, label) {
   const wk = e.w[(R() * e.w.length) | 0]; if (wk !== 'pistol') addLoot(e.x + 16, e.y, wk);
   broadcast({ t: 'feed', a: e.killerName, b: e.name });
 }
-const COST = { 1: 10, 2: 5, 3: 15 };   // 1 wall, 2 floor, 3 cone (wood)
+const COST = { 1: 10, 2: 5, 3: 10 };   // 1 wall, 2 floor, 3 ramp (wood)
 function hitsEntity(x, y, w, h) {
   for (const o of G.ents) {
     if (o.dead) continue;
@@ -147,39 +147,54 @@ function hitsEntity(x, y, w, h) {
   return false;
 }
 function segRect(g, i) {
-  return g.horiz ? { x: g.x0 + i * SEG, y: g.y0 - 6, w: SEG, h: 12 } : { x: g.x0 - 6, y: g.y0 + i * SEG, w: 12, h: SEG };
+  return g.horiz ? { x: g.x0 + i * SEG, y: g.y0 - 7, w: SEG, h: 14 } : { x: g.x0 - 7, y: g.y0 + i * SEG, w: 14, h: SEG };
 }
-// Pieces snap to a grid. The target is the tile in front of you (the way you're aiming, snapped to up/down/left/right).
-function build(e, type) {
+// Anyone standing where a wall appears is nudged to their own side of it (so you can box yourself in).
+function pushOut(g, placer, dx, dy) {
+  for (const o of G.ents) {
+    if (o.dead) continue;
+    const r = segRect(g, 0), full = g.horiz ? { x: g.x0, y: r.y, w: T, h: 14 } : { x: r.x, y: g.y0, w: 14, h: T };
+    const cx = clamp(o.x, full.x, full.x + full.w), cy = clamp(o.y, full.y, full.y + full.h);
+    if (Math.hypot(o.x - cx, o.y - cy) >= 15) continue;
+    if (g.horiz) { const side = o.y < g.y0 ? -1 : o.y > g.y0 ? 1 : (o === placer ? -dy : dy); o.y = clamp(g.y0 + side * 23, 15, M - 15); }
+    else { const side = o.x < g.x0 ? -1 : o.x > g.x0 ? 1 : (o === placer ? -dx : dx); o.x = clamp(g.x0 + side * 23, 15, M - 15); }
+  }
+}
+// Fortnite-style: pieces snap to a grid. A wall goes on the edge of the tile you stand in (the side you aim at);
+// floors and ramps go on the tile in front of you.
+function build(e, type, rot) {
   const cost = COST[type]; if (!cost || e.bc > 0 || e.wood < cost) return;
   const c = Math.cos(e.ang), s = Math.sin(e.ang), hor = Math.abs(c) > Math.abs(s);
   const dx = hor ? (c < 0 ? -1 : 1) : 0, dy = hor ? 0 : (s < 0 ? -1 : 1);
-  const tx = Math.floor(e.x / T) + dx, ty = Math.floor(e.y / T) + dy;
-  if (tx < 0 || ty < 0 || (tx + 1) * T > M || (ty + 1) * T > M) return;
-  if (type === 1) {                                   // wall on the far edge of the target tile
+  const px = Math.floor(e.x / T), py = Math.floor(e.y / T);
+  if (type === 1) {
     const horiz = !hor;
-    const x0 = horiz ? tx * T : (dx > 0 ? (tx + 1) * T : tx * T);
-    const y0 = horiz ? (dy > 0 ? (ty + 1) * T : ty * T) : ty * T;
+    const x0 = horiz ? px * T : (dx > 0 ? (px + 1) * T : px * T);
+    const y0 = horiz ? (dy > 0 ? (py + 1) * T : py * T) : py * T;
+    if (x0 > M || y0 > M) return;
     if (Object.values(G.groups).some(g => g.horiz === horiz && g.x0 === x0 && g.y0 === y0)) return;
-    const full = horiz ? [x0, y0 - 6, T, 12] : [x0 - 6, y0, 12, T];
-    if (hitsEntity(...full)) return;
     const gid = ++G.gid, g = G.groups[gid] = { x0, y0, horiz, owner: e.id };
     for (let i = 0; i < 3; i++) G.walls.push({ ...segRect(g, i), hp: 70, gid, seg: i, k: 1 });
-    G.wv++;
-  } else if (type === 2) {                            // floor tile: walkable, bullets pass
-    if (G.floors.some(f => f.tx === tx && f.ty === ty) || G.floors.length >= 400) return;
-    G.floors.push({ tx, ty }); G.fv++;
-  } else {                                            // cone: a solid pyramid that fills the tile
-    if (hitsEntity(tx * T, ty * T, T, T)) return;
-    G.walls.push({ x: tx * T, y: ty * T, w: T, h: T, hp: 200, k: 2 }); G.wv++;
+    pushOut(g, e, dx, dy); G.wv++;
+  } else {
+    const tx = px + dx, ty = py + dy;
+    if (tx < 0 || ty < 0 || (tx + 1) * T > M || (ty + 1) * T > M) return;
+    if (type === 2) {
+      if (G.floors.some(f => f.tx === tx && f.ty === ty) || G.floors.length >= 400) return;
+      G.floors.push({ tx, ty }); G.fv++;
+    } else {                                          // ramp: a diagonal barrier of 3 blocks across the tile
+      const bl = [0, 1, 2].map(i => ({ x: tx * T + i * SEG, y: ty * T + (rot ? i : 2 - i) * SEG, w: SEG, h: SEG, hp: 70, k: 3 }));
+      if (bl.some(b => hitsEntity(b.x, b.y, b.w, b.h) || G.walls.some(w => w.k === 3 && w.x === b.x && w.y === b.y))) return;
+      G.walls.push(...bl); G.wv++;
+    }
   }
-  e.bc = .25; e.wood -= cost;
+  e.bc = .12; e.wood -= cost;
 }
 // Edit: the owner opens or closes the 3 segments of one of their walls.
 function editWall(e, gid, mask) {
   const g = G.groups[gid]; if (!g || g.owner !== e.id || !Array.isArray(mask)) return;
   const cx = g.horiz ? g.x0 + T / 2 : g.x0, cy = g.horiz ? g.y0 : g.y0 + T / 2;
-  if (Math.hypot(e.x - cx, e.y - cy) > 260) return;
+  if (Math.hypot(e.x - cx, e.y - cy) > 320) return;
   for (let i = 0; i < 3; i++) {
     const idx = G.walls.findIndex(w => w.gid === gid && w.seg === i), want = !!mask[i];
     if (idx >= 0 && !want) G.walls.splice(idx, 1);
@@ -216,7 +231,7 @@ function update(dt) {
 
   for (const e of G.ents) {
     if (e.dead) continue; e.cd -= dt; e.bc -= dt; let mx = 0, my = 0;
-    if (!e.bot) { mx = e.in.dx; my = e.in.dy; if (e.in.sh) shoot(e); if (e.wb) { const bt = e.wb; e.wb = false; build(e, bt); } }
+    if (!e.bot) { mx = e.in.dx; my = e.in.dy; if (e.in.sh) shoot(e); if (e.wb) { const bt = e.wb; e.wb = false; build(e, bt, e.rot); } }
     else [mx, my] = ai(e, dt);
     const sp = e.bot ? 165 : 230; e.x += mx * sp * dt; e.y += my * sp * dt; resolve(e, 14);
     for (let i = G.loot.length - 1; i >= 0; i--) {
@@ -319,6 +334,7 @@ wss.on('connection', ws => {
       e.in = { dx, dy, sh: !!m.sh };
       if (Number.isFinite(+m.ang)) e.ang = +m.ang;
       if (m.b) e.wb = [1, 2, 3].includes(m.b | 0) ? m.b | 0 : 1;
+      e.rot = m.r ? 1 : 0;
       if (Number.isInteger(m.w) && e.w[m.w]) e.cw = e.w[m.w];
     }
   });
