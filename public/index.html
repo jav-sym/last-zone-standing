@@ -24,7 +24,7 @@ canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none
 #load{display:flex;gap:1vmin}#load canvas{width:clamp(38px,8vmin,60px);height:clamp(38px,8vmin,60px);background:#0b1b4a88;border:2px solid #fff6;border-radius:8px}
 #lright{display:flex;align-items:flex-end;justify-content:center;position:relative;height:100%}
 #lright::before{content:'';position:absolute;bottom:3%;width:40%;height:5%;background:#0004;border-radius:50%}
-#hero2{height:min(58vh,430px);aspect-ratio:40/56;image-rendering:pixelated;position:relative;margin-bottom:5%}
+#hero2{height:min(58vh,430px);aspect-ratio:3/4;image-rendering:pixelated;position:relative;margin-bottom:5%}
 #ov.home #menu{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;width:100%;height:100%;box-sizing:border-box;padding:2.2vmin 4vmin;align-items:stretch}
 #tabs,#tabs2{display:flex;gap:2.4vmin;align-items:center;flex-wrap:wrap;font-weight:800;font-size:clamp(12px,2.6vmin,22px);color:#fff;text-shadow:0 2px 0 #0005}
 .tab{cursor:pointer;padding:.45em .9em;border-radius:6px;user-select:none}
@@ -39,7 +39,7 @@ canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none
 .how{margin-top:2vmin;font-size:clamp(10px,1.8vmin,14px);line-height:1.5;opacity:.95;max-width:34ch}
 #mcenter{display:flex;align-items:flex-end;justify-content:center;position:relative;height:100%}
 #mcenter::before{content:'';position:absolute;bottom:3%;width:40%;height:5%;background:#0004;border-radius:50%}
-#hero{height:min(48vh,400px);aspect-ratio:40/56;image-rendering:pixelated;animation:bob 2.2s ease-in-out infinite;position:relative;margin-bottom:5%}
+#hero{height:min(48vh,400px);aspect-ratio:3/4;image-rendering:pixelated;animation:bob 2.2s ease-in-out infinite;position:relative;margin-bottom:5%}
 @keyframes bob{50%{transform:translateY(-1.4vmin)}}
 #mright{display:flex;flex-direction:column;gap:1.6vmin;align-self:center}
 .banner{background:linear-gradient(135deg,#f97316,#ea580c);border:2px solid #fff;border-radius:8px;padding:1vmin 1.6vmin;font-weight:900;font-style:italic;font-size:clamp(11px,2.2vmin,18px);display:flex;align-items:center;justify-content:space-between;text-shadow:0 2px 0 #0005}
@@ -85,7 +85,7 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 <div id="mbody">
  <div id="mleft"><div class="era">NEW ERA</div><div class="season">SEASON 1</div><div class="lvl">LVL 1 <i><b></b></i> NEXT LVL 2</div>
   <div class="how"><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>1-4</b> weapon<br><b>Q</b> build mode (<b>Z/X/C</b> wall / floor / ramp) · <b>R</b> flip ramp · <b>E</b> edit<br>📱 Landscape: left thumb moves, right thumb aims and fires.</div></div>
- <div id="mcenter"><canvas id="hero" width="40" height="56"></canvas></div>
+ <div id="mcenter"><canvas id="hero" width="48" height="64"></canvas></div>
  <div id="mright">
   <div class="banner"><div>NEW<br>WEAPONS!</div><span>🔫</span></div>
   <div class="panel"><div id="mname">FREE FIGHT</div>
@@ -105,7 +105,7 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
   <div id="swat"></div>
   <button id="bRand">🎲 RANDOM</button>
   <div class="lt">LOADOUT</div><div id="load"></div></div>
- <div id="lright"><canvas id="hero2" width="40" height="56"></canvas></div>
+ <div id="lright"><canvas id="hero2" width="48" height="64"></canvas></div>
 </div></div>
 <div id="lobby" style="display:none"><div id="code"></div><p id="lh">Share this code. Custom matches have no bots.</p><div id="plist"></div>
 <button id="bStart">Start match</button><button id="bCopy" class="alt">Copy invite link</button><button id="bLeaveL" class="alt">Leave</button></div>
@@ -149,26 +149,35 @@ $('bMode').onclick=()=>$('modes').classList.toggle('open');
 document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 $('bPlay').onclick=()=>{fs();$('err').textContent='';if(curMode=='free')send({t:'solo',name:nm(),fit});else if(curMode=='create')send({t:'create',name:nm(),fit});else send({t:'join',name:nm(),code:$('cd').value,fit})};
 // ---- outfits / locker ----
-const PAL={skin:['#f5c6a0','#e0a878','#c68642','#8d5524','#4ade80','#a5b4fc'],
- hair:['#2b1b0e','#6b3e1b','#d4a017','#c0392b','#c2410c','#222222','#e8e8e8','#ec4899'],
+const PAL={skin:['#f5c6a0','#e0a878','#c68642','#8d5524','#3de8b0','#a5b4fc'],
+ hair:['#2b1b0e','#6b3e1b','#d4a017','#c0392b','#b4451c','#222222','#e8e8e8','#ec4899'],
  shirt:['#3b82f6','#ef4444','#10b981','#8b5cf6','#f59e0b','#ec4899','#14b8a6','#f97316','#1e293b','#e5e7eb'],
  pants:['#1e3a8a','#334155','#14532d','#7c2d12','#3f3f46','#111827']};
 const LIM=[6,8,10,6,3],HATN=['None','Cap','Band'];let lcat=2;
-function loadFit(){try{const f=JSON.parse(localStorage.getItem('sr_fit'));if(Array.isArray(f)&&f.length==5)return f.map((v,i)=>Math.max(0,Math.min(LIM[i]-1,v|0)))}catch(e){}return [4,4,0,5,0]}
+function loadFit(){try{const f=JSON.parse(localStorage.getItem('sr_fit'));if(Array.isArray(f)&&f.length==5)return f.map((v,i)=>Math.max(0,Math.min(LIM[i]-1,v|0)))}catch(e){}return [4,4,8,5,0]}
 function saveFit(){try{localStorage.setItem('sr_fit',JSON.stringify(fit))}catch(e){}}
 let fit=loadFit();
 function shade(c,k){const n=parseInt(c.slice(1),16),f=v=>Math.max(0,Math.min(255,(v*k)|0));return '#'+((1<<24)+(f((n>>16)&255)<<16)+(f((n>>8)&255)<<8)+f(n&255)).toString(16).slice(1)}
-function paintHero(cvs,F){const g=cvs.getContext('2d');g.clearRect(0,0,40,56);const sk=PAL.skin[F[0]],hr=PAL.hair[F[1]],sh=PAL.shirt[F[2]],pn=PAL.pants[F[3]],hat=F[4],z=F[0]>=4;
- const P=[[12,2,16,6,hr],[10,6,4,11,hr],[26,6,4,9,shade(hr,.7)],[14,4,7,2,shade(hr,1.25)],
-  [13,8,14,12,sk],[13,16,14,4,shade(sk,.85)],[15,12,5,4,z?'#14532d':'#e5e7eb'],[22,12,5,4,z?'#14532d':'#e5e7eb'],[16,13,3,2,z?'#ef4444':'#1f2937'],[23,13,3,2,z?'#ef4444':'#1f2937'],[18,18,6,1,shade(sk,.5)],
-  [12,20,16,16,sh],[12,20,16,3,shade(sh,1.25)],[19,23,2,13,shade(sh,.6)],[12,34,16,2,'#0b1117'],
-  [8,21,5,13,sh],[8,34,5,4,sk],[27,21,5,13,sh],[27,34,5,4,sk],
-  [13,36,6,13,pn],[21,36,6,13,pn],[12,48,8,5,'#0b1117'],[20,48,8,5,'#0b1117'],
-  [31,9,4,27,'#22d3ee'],[32,9,1,27,'#a5f3fc'],[32,6,2,3,'#a5f3fc'],[29,34,8,3,'#0e7490']];
- if(hat==1)P.push([11,3,18,5,sh],[24,7,9,2,shade(sh,.7)]);
- if(hat==2)P.push([12,8,16,3,sh]);
- for(const r of P){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}}
-function paintHeroes(){paintHero($('hero'),fit);paintHero($('hero2'),fit)}
+function paintHero(cvs,F,armed){const g=cvs.getContext('2d');g.clearRect(0,0,48,64);const sk=PAL.skin[F[0]],hr=PAL.hair[F[1]],sh=PAL.shirt[F[2]],pn=PAL.pants[F[3]],hat=F[4],z=F[0]>=4,ol='#080c1c';
+ // body parts [x,y,w,h,color]: every one gets a 1px black outline first, then the fills, like the pixel art reference
+ const B=[[16,2,10,4,hr],[12,4,26,8,hr],[6,8,8,6,hr],[3,12,7,6,shade(hr,.8)],[7,17,5,6,shade(hr,.8)],[36,8,4,10,shade(hr,.8)],
+  [14,12,22,18,sk],[16,28,18,3,shade(sk,.85)],
+  [16,31,18,16,sh],[10,32,6,13,sk],[34,32,6,13,sk],[9,44,6,5,sk],[35,44,6,5,sk],
+  [16,47,8,12,pn],[26,47,8,12,pn],[15,58,10,5,'#0b0f19'],[25,58,10,5,'#0b0f19']];
+ if(armed)B.push([41,14,4,34,'#22d3ee'],[38,46,10,3,'#0e7490']);
+ for(const r of B){g.fillStyle=ol;g.fillRect(r[0]-1,r[1]-1,r[2]+2,r[3]+2)}
+ for(const r of B){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}
+ const D=[[14,12,3,2,shade(hr,1.2)],[20,3,6,1,shade(hr,1.25)],[16,31,3,16,shade(sh,.7)],[31,31,3,16,shade(sh,.7)],
+  [22,35,2,2,'#9ca3af'],[25,37,2,2,'#9ca3af'],[28,35,2,2,'#9ca3af'],[16,45,18,2,'#111827'],[24,45,4,2,'#f472b6'],
+  [21,27,8,1,shade(sk,.45)],[34,24,3,5,'#f87171']];
+ // eyes: a big glowing eye for the zombie skins, plain eyes otherwise
+ if(z)D.push([16,16,9,8,'#0f3d3e'],[18,18,5,4,'#fb7185'],[19,19,2,2,'#fecaca'],[28,18,5,4,'#fb7185']);
+ else D.push([17,17,7,6,'#f1f5f9'],[20,18,3,4,'#1f2937'],[28,17,6,6,'#f1f5f9'],[30,18,3,4,'#1f2937']);
+ if(hat==1)D.push([12,4,26,6,sh],[32,9,8,2,shade(sh,.7)]);
+ if(hat==2)D.push([14,12,22,3,sh]);
+ if(armed)D.push([42,14,1,34,'#a5f3fc'],[42,11,2,3,'#a5f3fc']);
+ for(const r of D){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}}
+function paintHeroes(){paintHero($('hero'),fit,true);paintHero($('hero2'),fit,false)}
 function renderSwatches(){const box=$('swat');box.innerHTML='';
  document.querySelectorAll('#cats button').forEach(b=>b.classList.toggle('on',+b.dataset.c===lcat));
  const keys=['skin','hair','shirt','pants'];
@@ -229,12 +238,13 @@ function drawChar(e,id,self,ang,t){
  ctx.fillStyle=sh;rbox(-9,-12,18,17,5);ctx.fill();ctx.stroke();
  ctx.fillStyle=sk;ctx.beginPath();ctx.arc(0,-19,9,0,7);ctx.fill();ctx.stroke();
  ctx.fillStyle=hc;ctx.beginPath();ctx.arc(0,-19,9,Math.PI,2*Math.PI);ctx.closePath();ctx.fill();ctx.stroke();
+ if(F){ctx.fillStyle=hc;for(let k=0;k<3;k++){ctx.beginPath();ctx.moveTo(-f*7,-24+k*3);ctx.lineTo(-f*14,-21+k*4);ctx.lineTo(-f*8,-18+k*3);ctx.closePath();ctx.fill();ctx.stroke()}}
  if(hat==1){ctx.fillStyle=sh;ctx.beginPath();ctx.arc(0,-19,9.4,Math.PI,2*Math.PI);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillRect(f>0?1:-12,-20,11,3);ctx.strokeRect(f>0?1:-12,-20,11,3)}
  else if(hat==2){ctx.fillStyle=sh;ctx.fillRect(-9,-23,18,4);ctx.strokeRect(-9,-23,18,4)}
- ctx.fillStyle='#111';ctx.beginPath();ctx.arc(f*2.5,-17,1.4,0,7);ctx.arc(f*6.5,-17,1.4,0,7);ctx.fill();
+ ctx.fillStyle=F&&F[0]>=4?'#fb7185':'#111';ctx.beginPath();ctx.arc(f*2.5,-17,F&&F[0]>=4?2:1.4,0,7);ctx.arc(f*6.5,-17,F&&F[0]>=4?2:1.4,0,7);ctx.fill();
  ctx.translate(0,-6);ctx.rotate(ang);if(!right)ctx.scale(1,-1);
  ctx.strokeStyle='#111';ctx.lineWidth=6.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
- ctx.strokeStyle=sh;ctx.lineWidth=4.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
+ ctx.strokeStyle=F?sk:sh;ctx.lineWidth=4.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
  const w=(self&&bmode)?-1:(e.w|0);ctx.strokeStyle='#111';ctx.lineWidth=1.5;ctx.fillStyle='#374151';
  if(w<0){ctx.fillStyle='#92400e';ctx.fillRect(4,-2,24,4);ctx.strokeRect(4,-2,24,4);ctx.fillStyle='#9ca3af';ctx.fillRect(24,-8,6,16);ctx.strokeRect(24,-8,6,16)}
  else if(w==0){ctx.fillRect(10,-2.5,11,5);ctx.strokeRect(10,-2.5,11,5);ctx.fillRect(11,2,4,5)}
