@@ -66,6 +66,9 @@ function leaveRoom(c) {
   if (room.host === c) room.host = [...room.clients][0];
   if (room.phase === 'lobby') sendLobby(room);
 }
+const FIT_LIM = [6, 8, 10, 6, 3];   // skin, hair, shirt, pants, hat choices
+const cleanFit = f => (Array.isArray(f) && f.length === 5 && f.every((v, i) => Number.isInteger(v) && v >= 0 && v < FIT_LIM[i])) ? f : null;
+const outfitMap = () => { const o = {}; for (const e of G.ents) if (!e.bot && e.fit) o[e.id] = e.fit; return o; };
 const namesMap = () => { const n = {}; for (const e of G.ents) if (!e.bot) n[e.id] = e.name; return n; };
 
 /* ---------- world ---------- */
@@ -84,12 +87,12 @@ function house(x, y) {
 function mkEnt(bot, name, c) {
   const e = { id: nextId++, x: rr(200, M - 200), y: rr(200, M - 200), hp: 100, sh: 0, w: ['pistol'], cw: 'pistol',
     cd: 0, bc: 0, wood: bot ? 20 : 60, bot, ang: 0, tx: 0, ty: 0, t: 0, dead: false, k: 0, c, place: 0,
-    in: { dx: 0, dy: 0, sh: false }, wb: false, killerName: '' };
+    in: { dx: 0, dy: 0, sh: false }, wb: false, killerName: '', fit: c ? c.fit : null };
   e.name = name || 'Bot' + e.id; e.tx = e.x; e.ty = e.y; return e;
 }
 function addHuman(c) {
   const e = mkEnt(false, c.name, c); c.ent = e; c.wv = c.lv = c.fv = 0; c.notified = false; G.ents.push(e);
-  send(c, { t: 'init', id: e.id, mode: ROOM.mode, code: ROOM.code, M, trees: G.trees.map(t => [Math.round(t.x), Math.round(t.y), Math.round(t.r)]), names: namesMap() });
+  send(c, { t: 'init', id: e.id, mode: ROOM.mode, code: ROOM.code, M, trees: G.trees.map(t => [Math.round(t.x), Math.round(t.y), Math.round(t.r)]), names: namesMap(), o: outfitMap() });
 }
 function startMatch(room) {
   room.G = { t: 0, ents: [], trees: [], walls: [], loot: [], bul: [], fx: [], wv: 1, lv: 1, noHuman: 0, freeze: FREEZE, groups: {}, gid: 0, floors: [], fv: 1,
@@ -101,7 +104,7 @@ function startMatch(room) {
   for (const c of room.clients) addHuman(c);
   if (room.mode === 'solo') { const nb = Math.max(0, TOTAL - room.clients.size); for (let i = 0; i < nb; i++) G.ents.push(mkEnt(true)); }   // bots only in solo, created at the same moment as the players
   room.phase = 'play';
-  broadcast({ t: 'roster', n: namesMap() });
+  broadcast({ t: 'roster', n: namesMap(), o: outfitMap() });
 }
 
 /* ---------- gameplay ---------- */
@@ -308,16 +311,16 @@ wss.on('connection', ws => {
     if (!m || typeof m !== 'object') return;
     const room = c.room;
     if (m.t === 'solo' && !room) {
-      c.name = cleanName(m.name, c); queueJoin(c);
+      c.name = cleanName(m.name, c); c.fit = cleanFit(m.fit); queueJoin(c);
     } else if (m.t === 'create' && !room) {
-      c.name = cleanName(m.name, c); const r = makeRoom('custom'); joinRoom(c, r); sendLobby(r);
+      c.name = cleanName(m.name, c); c.fit = cleanFit(m.fit); const r = makeRoom('custom'); joinRoom(c, r); sendLobby(r);
     } else if (m.t === 'join' && !room) {
       const code = String(m.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       const r = rooms.get(code);
       if (!r || r.mode !== 'custom') return send(c, { t: 'err', msg: 'No match found with that code' });
       if (r.phase !== 'lobby') return send(c, { t: 'err', msg: 'That match has already started' });
       if (r.clients.size >= MAX_HUMANS) return send(c, { t: 'err', msg: 'That match is full' });
-      c.name = cleanName(m.name, c); joinRoom(c, r); sendLobby(r);
+      c.name = cleanName(m.name, c); c.fit = cleanFit(m.fit); joinRoom(c, r); sendLobby(r);
     } else if (m.t === 'start' && room && room.host === c && room.phase === 'lobby') {
       if (room.mode === 'custom' && room.clients.size < 2) return send(c, { t: 'err', msg: 'Need at least 2 players to start' });
       startMatch(room);
