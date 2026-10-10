@@ -66,9 +66,9 @@ function leaveRoom(c) {
   if (room.host === c) room.host = [...room.clients][0];
   if (room.phase === 'lobby') sendLobby(room);
 }
-const FIT_LIM = [6, 8, 10, 6, 3];   // skin, hair, shirt, pants, hat choices
-const cleanFit = f => (Array.isArray(f) && f.length === 5 && f.every((v, i) => Number.isInteger(v) && v >= 0 && v < FIT_LIM[i])) ? f : null;
-const outfitMap = () => { const o = {}; for (const e of G.ents) if (!e.bot && e.fit) o[e.id] = e.fit; return o; };
+const MAX_SKIN = 50;   // character ids the client may pick (the sprites live in the client)
+const cleanFit = f => (Number.isInteger(f) && f >= 0 && f < MAX_SKIN) ? f : null;
+const outfitMap = () => { const o = {}; for (const e of G.ents) if (!e.bot && e.fit != null) o[e.id] = e.fit; return o; };
 const namesMap = () => { const n = {}; for (const e of G.ents) if (!e.bot) n[e.id] = e.name; return n; };
 
 /* ---------- world ---------- */
@@ -311,16 +311,16 @@ wss.on('connection', ws => {
     if (!m || typeof m !== 'object') return;
     const room = c.room;
     if (m.t === 'solo' && !room) {
-      c.name = cleanName(m.name, c); c.fit = cleanFit(m.fit); queueJoin(c);
+      c.name = cleanName(m.name, c); c.fit = cleanFit(m.skin); queueJoin(c);
     } else if (m.t === 'create' && !room) {
-      c.name = cleanName(m.name, c); c.fit = cleanFit(m.fit); const r = makeRoom('custom'); joinRoom(c, r); sendLobby(r);
+      c.name = cleanName(m.name, c); c.fit = cleanFit(m.skin); const r = makeRoom('custom'); joinRoom(c, r); sendLobby(r);
     } else if (m.t === 'join' && !room) {
       const code = String(m.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       const r = rooms.get(code);
       if (!r || r.mode !== 'custom') return send(c, { t: 'err', msg: 'No match found with that code' });
       if (r.phase !== 'lobby') return send(c, { t: 'err', msg: 'That match has already started' });
       if (r.clients.size >= MAX_HUMANS) return send(c, { t: 'err', msg: 'That match is full' });
-      c.name = cleanName(m.name, c); c.fit = cleanFit(m.fit); joinRoom(c, r); sendLobby(r);
+      c.name = cleanName(m.name, c); c.fit = cleanFit(m.skin); joinRoom(c, r); sendLobby(r);
     } else if (m.t === 'start' && room && room.host === c && room.phase === 'lobby') {
       if (room.mode === 'custom' && room.clients.size < 2) return send(c, { t: 'err', msg: 'Need at least 2 players to start' });
       startMatch(room);
