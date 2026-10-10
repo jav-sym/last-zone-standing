@@ -22,9 +22,14 @@ canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none
 .swb{margin:0!important;width:clamp(30px,6vmin,46px);height:clamp(30px,6vmin,46px);padding:0!important;border:3px solid #fff6!important;border-radius:8px!important;font-size:clamp(10px,1.8vmin,14px)!important;color:#111;background:#fff;cursor:pointer}
 .swb.on{border-color:#fff!important;box-shadow:0 0 0 3px #fde047}
 #load{display:flex;gap:1vmin}#load canvas{width:clamp(38px,8vmin,60px);height:clamp(38px,8vmin,60px);background:#0b1b4a88;border:2px solid #fff6;border-radius:8px}
+#chars{display:flex;flex-wrap:wrap;gap:1vmin}
+.cc{width:clamp(54px,11vmin,88px);height:clamp(68px,14vmin,112px);border:3px solid #fff6;border-radius:10px;background:#0b1b4a66;padding:4px;box-sizing:border-box;cursor:pointer;display:flex;align-items:flex-end;justify-content:center}
+.cc canvas{max-width:100%;max-height:100%;height:100%;image-rendering:pixelated}
+.cc.on{border-color:#fff;box-shadow:0 0 0 3px #fde047}
+.cc.lock{opacity:.45;cursor:default;align-items:center;font-size:clamp(16px,3.4vmin,28px)}
 #lright{display:flex;align-items:flex-end;justify-content:center;position:relative;height:100%}
 #lright::before{content:'';position:absolute;bottom:3%;width:40%;height:5%;background:#0004;border-radius:50%}
-#hero2{height:min(58vh,430px);aspect-ratio:3/4;image-rendering:pixelated;position:relative;margin-bottom:5%}
+#hero2{height:min(58vh,430px);image-rendering:pixelated;position:relative;margin-bottom:5%}
 #ov.home #menu{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr;width:100%;height:100%;box-sizing:border-box;padding:2.2vmin 4vmin;align-items:stretch}
 #tabs,#tabs2{display:flex;gap:2.4vmin;align-items:center;flex-wrap:wrap;font-weight:800;font-size:clamp(12px,2.6vmin,22px);color:#fff;text-shadow:0 2px 0 #0005}
 .tab{cursor:pointer;padding:.45em .9em;border-radius:6px;user-select:none}
@@ -39,7 +44,7 @@ canvas{display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none
 .how{margin-top:2vmin;font-size:clamp(10px,1.8vmin,14px);line-height:1.5;opacity:.95;max-width:34ch}
 #mcenter{display:flex;align-items:flex-end;justify-content:center;position:relative;height:100%}
 #mcenter::before{content:'';position:absolute;bottom:3%;width:40%;height:5%;background:#0004;border-radius:50%}
-#hero{height:min(48vh,400px);aspect-ratio:3/4;image-rendering:pixelated;animation:bob 2.2s ease-in-out infinite;position:relative;margin-bottom:5%}
+#hero{height:min(48vh,400px);image-rendering:pixelated;animation:bob 2.2s ease-in-out infinite;position:relative;margin-bottom:5%}
 @keyframes bob{50%{transform:translateY(-1.4vmin)}}
 #mright{display:flex;flex-direction:column;gap:1.6vmin;align-self:center}
 .banner{background:linear-gradient(135deg,#f97316,#ea580c);border:2px solid #fff;border-radius:8px;padding:1vmin 1.6vmin;font-weight:900;font-style:italic;font-size:clamp(11px,2.2vmin,18px);display:flex;align-items:center;justify-content:space-between;text-shadow:0 2px 0 #0005}
@@ -100,10 +105,7 @@ h1{margin:0 0 8px;font-size:38px}p{margin:4px;opacity:.85;max-width:520px;line-h
 <div id="locker" style="display:none">
 <nav id="tabs2" class="tabs"></nav>
 <div id="lbody">
- <div id="lleft"><div class="lt">GEAR / OUTFIT</div>
-  <div id="cats"><button data-c="0">SKIN</button><button data-c="1">HAIR</button><button data-c="2">SHIRT</button><button data-c="3">PANTS</button><button data-c="4">HAT</button></div>
-  <div id="swat"></div>
-  <button id="bRand">🎲 RANDOM</button>
+ <div id="lleft"><div class="lt">CHARACTERS</div><div id="chars"></div>
   <div class="lt">LOADOUT</div><div id="load"></div></div>
  <div id="lright"><canvas id="hero2" width="48" height="64"></canvas></div>
 </div></div>
@@ -147,51 +149,23 @@ let curMode='free';const MN={free:'FREE FIGHT',create:'CUSTOM MATCH',join:'JOIN 
 function setMode(m){curMode=m;$('mname').textContent=MN[m];$('cd').style.display=m=='join'?'':'none';$('modes').classList.remove('open')}
 $('bMode').onclick=()=>$('modes').classList.toggle('open');
 document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
-$('bPlay').onclick=()=>{fs();$('err').textContent='';if(curMode=='free')send({t:'solo',name:nm(),fit});else if(curMode=='create')send({t:'create',name:nm(),fit});else send({t:'join',name:nm(),code:$('cd').value,fit})};
-// ---- outfits / locker ----
-const PAL={skin:['#f5c6a0','#e0a878','#c68642','#8d5524','#3de8b0','#a5b4fc'],
- hair:['#2b1b0e','#6b3e1b','#d4a017','#c0392b','#b4451c','#222222','#e8e8e8','#ec4899'],
- shirt:['#3b82f6','#ef4444','#10b981','#8b5cf6','#f59e0b','#ec4899','#14b8a6','#f97316','#1e293b','#e5e7eb'],
- pants:['#1e3a8a','#334155','#14532d','#7c2d12','#3f3f46','#111827']};
-const LIM=[6,8,10,6,3],HATN=['None','Cap','Band'];let lcat=2;
-function loadFit(){try{const f=JSON.parse(localStorage.getItem('sr_fit'));if(Array.isArray(f)&&f.length==5)return f.map((v,i)=>Math.max(0,Math.min(LIM[i]-1,v|0)))}catch(e){}return [4,4,8,5,0]}
-function saveFit(){try{localStorage.setItem('sr_fit',JSON.stringify(fit))}catch(e){}}
-let fit=loadFit();
-function shade(c,k){const n=parseInt(c.slice(1),16),f=v=>Math.max(0,Math.min(255,(v*k)|0));return '#'+((1<<24)+(f((n>>16)&255)<<16)+(f((n>>8)&255)<<8)+f(n&255)).toString(16).slice(1)}
-function paintHero(cvs,F,armed){const g=cvs.getContext('2d');g.clearRect(0,0,48,64);const sk=PAL.skin[F[0]],hr=PAL.hair[F[1]],sh=PAL.shirt[F[2]],pn=PAL.pants[F[3]],hat=F[4],z=F[0]>=4,ol='#080c1c';
- // body parts [x,y,w,h,color]: every one gets a 1px black outline first, then the fills, like the pixel art reference
- const B=[[16,2,10,4,hr],[12,4,26,8,hr],[6,8,8,6,hr],[3,12,7,6,shade(hr,.8)],[7,17,5,6,shade(hr,.8)],[36,8,4,10,shade(hr,.8)],
-  [14,12,22,18,sk],[16,28,18,3,shade(sk,.85)],
-  [16,31,18,16,sh],[10,32,6,13,sk],[34,32,6,13,sk],[9,44,6,5,sk],[35,44,6,5,sk],
-  [16,47,8,12,pn],[26,47,8,12,pn],[15,58,10,5,'#0b0f19'],[25,58,10,5,'#0b0f19']];
- if(armed)B.push([41,14,4,34,'#22d3ee'],[38,46,10,3,'#0e7490']);
- for(const r of B){g.fillStyle=ol;g.fillRect(r[0]-1,r[1]-1,r[2]+2,r[3]+2)}
- for(const r of B){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}
- const D=[[14,12,3,2,shade(hr,1.2)],[20,3,6,1,shade(hr,1.25)],[16,31,3,16,shade(sh,.7)],[31,31,3,16,shade(sh,.7)],
-  [22,35,2,2,'#9ca3af'],[25,37,2,2,'#9ca3af'],[28,35,2,2,'#9ca3af'],[16,45,18,2,'#111827'],[24,45,4,2,'#f472b6'],
-  [21,27,8,1,shade(sk,.45)],[34,24,3,5,'#f87171']];
- // eyes: a big glowing eye for the zombie skins, plain eyes otherwise
- if(z)D.push([16,16,9,8,'#0f3d3e'],[18,18,5,4,'#fb7185'],[19,19,2,2,'#fecaca'],[28,18,5,4,'#fb7185']);
- else D.push([17,17,7,6,'#f1f5f9'],[20,18,3,4,'#1f2937'],[28,17,6,6,'#f1f5f9'],[30,18,3,4,'#1f2937']);
- if(hat==1)D.push([12,4,26,6,sh],[32,9,8,2,shade(sh,.7)]);
- if(hat==2)D.push([14,12,22,3,sh]);
- if(armed)D.push([42,14,1,34,'#a5f3fc'],[42,11,2,3,'#a5f3fc']);
- for(const r of D){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}}
-function paintHeroes(){paintHero($('hero'),fit,true);paintHero($('hero2'),fit,false)}
-function renderSwatches(){const box=$('swat');box.innerHTML='';
- document.querySelectorAll('#cats button').forEach(b=>b.classList.toggle('on',+b.dataset.c===lcat));
- const keys=['skin','hair','shirt','pants'];
- for(let i=0;i<LIM[lcat];i++){const b=document.createElement('button');b.className='swb'+(fit[lcat]===i?' on':'');
-  if(lcat<4)b.style.background=PAL[keys[lcat]][i];else b.textContent=HATN[i];
-  b.onclick=()=>{fit[lcat]=i;saveFit();paintHeroes();renderSwatches()};box.appendChild(b)}}
-document.querySelectorAll('#cats button').forEach(b=>b.onclick=()=>{lcat=+b.dataset.c;renderSwatches()});
-$('bRand').onclick=()=>{fit=LIM.map(n=>(Math.random()*n)|0);saveFit();paintHeroes();renderSwatches()};
+$('bPlay').onclick=()=>{fs();$('err').textContent='';if(curMode=='free')send({t:'solo',name:nm(),skin:skinSel});else if(curMode=='create')send({t:'create',name:nm(),skin:skinSel});else send({t:'join',name:nm(),code:$('cd').value,skin:skinSel})};
+// ---- characters: each one is a full sprite you can pick in the Locker ----
+const CHARS=[{name:'Hero 1',skin:'#3de8b0',src:'data:image/png;base64,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'}];
+const CIMG=CHARS.map(c=>{const i=new Image();i.onload=()=>paintAll();i.src=c.src;return i});
+let skinSel=0;try{const v=+localStorage.getItem('sr_skin');if(v>=0&&v<CHARS.length)skinSel=v}catch(e){}
+function paintSprite(cvs,id){const im=CIMG[id];if(!im||!im.width)return;cvs.width=im.width;cvs.height=im.height;const g=cvs.getContext('2d');g.clearRect(0,0,cvs.width,cvs.height);g.drawImage(im,0,0)}
+function renderChars(){const box=$('chars');box.innerHTML='';
+ CHARS.forEach((c,i)=>{const d=document.createElement('div');d.className='cc'+(i===skinSel?' on':'');const t=document.createElement('canvas');paintSprite(t,i);d.appendChild(t);
+  d.onclick=()=>{skinSel=i;try{localStorage.setItem('sr_skin',String(i))}catch(e){}paintAll()};box.appendChild(d)});
+ for(let i=0;i<3;i++){const d=document.createElement('div');d.className='cc lock';d.textContent='🔒';box.appendChild(d)}}
+function paintAll(){paintSprite($('hero'),skinSel);paintSprite($('hero2'),skinSel);renderChars()}
 for(let k=0;k<4;k++){const c=document.createElement('canvas');c.width=56;c.height=56;const g=c.getContext('2d');for(const r of GUNR[k]){g.fillStyle=r[4];g.fillRect(r[0],r[1],r[2],r[3])}g.fillStyle=WC[k];g.fillRect(10,44,36,3);$('load').appendChild(c)}
 const TABS=[['play','PLAY'],['locker','LOCKER'],['shop','SHOP'],['pass','EVENT PASS'],['compete','COMPETE'],['stars','STARS']];
 function renderTabs(el,active){el.innerHTML=TABS.map(t=>'<b class="tab'+(t[0]==active?' on':'')+'" data-t="'+t[0]+'">'+t[1]+'</b>').join('')+'<span class="soon"></span>';
  el.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const t=b.dataset.t;if(t=='play')panel('menu');else if(t=='locker')panel('locker');
   else{const x=el.querySelector('.soon');x.textContent=b.textContent+' is coming soon';clearTimeout(x._t);x._t=setTimeout(()=>{x.textContent=''},2000)}})}
-renderTabs($('tabs'),'play');renderTabs($('tabs2'),'locker');renderSwatches();paintHeroes();
+renderTabs($('tabs'),'play');renderTabs($('tabs2'),'locker');paintAll();
 $('bStart').onclick=()=>send({t:'start'});
 $('bAgain').onclick=()=>send({t:'again'});
 const toMenu=()=>{send({t:'leave'});playing=false;dead=false;banner='';ents.clear();title('Shooter Realm','Battle royale: last one standing wins.');panel('menu')};
@@ -227,24 +201,24 @@ function vis(x,y,mg){return Math.abs(x-cam.x)<W/2/Z+mg&&Math.abs(y-cam.y)<H/2/Z+
 const SK=['#f5c6a0','#e0a878','#c68642','#8d5524'],HC=['#2b1b0e','#6b3e1b','#d4a017','#c0392b','#222','#e8e8e8'],SH=['#ef4444','#f59e0b','#10b981','#8b5cf6','#ec4899','#14b8a6','#f97316','#64748b'],PN=['#1e3a8a','#334155','#14532d','#7c2d12','#3f3f46'];
 function rbox(x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h)}
 function drawChar(e,id,self,ang,t){
- const h=Math.imul(id+7,2654435761)>>>0,F=fits[id]||(self?fit:null),sk=F?PAL.skin[F[0]]:SK[h%4],hc=F?PAL.hair[F[1]]:HC[(h>>>3)%6],sh=F?PAL.shirt[F[2]]:SH[(h>>>6)%8],pn=F?PAL.pants[F[3]]:PN[(h>>>9)%5],hat=F?F[4]:0;
+ const h=Math.imul(id+7,2654435761)>>>0,F=fits[id]!=null?fits[id]:(self?skinSel:null),im=(F!=null&&CIMG[F]&&CIMG[F].width)?CIMG[F]:null,sk=im?CHARS[F].skin:SK[h%4],hc=HC[(h>>>3)%6],sh=SH[(h>>>6)%8],pn=PN[(h>>>9)%5];
  const right=Math.cos(ang)>=0,f=right?1:-1,walking=Math.hypot(e.tx-e.x,e.ty-e.y)>.8,sw=walking?Math.sin(t*14+id)*5:0;
  ctx.save();ctx.translate(e.x,e.y);ctx.lineJoin='round';
  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(0,12,13,5,0,0,7);ctx.fill();
  ctx.strokeStyle=self?'#93c5fd':names[id]?'#fbbf24':'#fff0';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,12,15,6,0,0,7);ctx.stroke();
  ctx.strokeStyle='#111';ctx.lineWidth=1.5;
+ if(im){const hh=48,ww=hh*im.width/im.height;ctx.save();ctx.translate(0,walking?-Math.abs(Math.sin(t*14+id))*2:0);if(!right)ctx.scale(-1,1);ctx.imageSmoothingEnabled=true;ctx.drawImage(im,-ww/2,13-hh,ww,hh);ctx.restore()}
+ else{
  ctx.fillStyle=pn;ctx.fillRect(-7,4+sw/3,5,8);ctx.strokeRect(-7,4+sw/3,5,8);ctx.fillRect(2,4-sw/3,5,8);ctx.strokeRect(2,4-sw/3,5,8);
  ctx.fillStyle='#111';ctx.fillRect(-8,11+sw/3,7,2.5);ctx.fillRect(1,11-sw/3,7,2.5);
  ctx.fillStyle=sh;rbox(-9,-12,18,17,5);ctx.fill();ctx.stroke();
  ctx.fillStyle=sk;ctx.beginPath();ctx.arc(0,-19,9,0,7);ctx.fill();ctx.stroke();
  ctx.fillStyle=hc;ctx.beginPath();ctx.arc(0,-19,9,Math.PI,2*Math.PI);ctx.closePath();ctx.fill();ctx.stroke();
- if(F){ctx.fillStyle=hc;for(let k=0;k<3;k++){ctx.beginPath();ctx.moveTo(-f*7,-24+k*3);ctx.lineTo(-f*14,-21+k*4);ctx.lineTo(-f*8,-18+k*3);ctx.closePath();ctx.fill();ctx.stroke()}}
- if(hat==1){ctx.fillStyle=sh;ctx.beginPath();ctx.arc(0,-19,9.4,Math.PI,2*Math.PI);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillRect(f>0?1:-12,-20,11,3);ctx.strokeRect(f>0?1:-12,-20,11,3)}
- else if(hat==2){ctx.fillStyle=sh;ctx.fillRect(-9,-23,18,4);ctx.strokeRect(-9,-23,18,4)}
- ctx.fillStyle=F&&F[0]>=4?'#fb7185':'#111';ctx.beginPath();ctx.arc(f*2.5,-17,F&&F[0]>=4?2:1.4,0,7);ctx.arc(f*6.5,-17,F&&F[0]>=4?2:1.4,0,7);ctx.fill();
- ctx.translate(0,-6);ctx.rotate(ang);if(!right)ctx.scale(1,-1);
- ctx.strokeStyle='#111';ctx.lineWidth=6.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
- ctx.strokeStyle=F?sk:sh;ctx.lineWidth=4.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(11,0);ctx.stroke();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(f*2.5,-17,1.4,0,7);ctx.arc(f*6.5,-17,1.4,0,7);ctx.fill()}
+ const al=im?8:11;
+ ctx.translate(0,im?-12:-6);ctx.rotate(ang);if(!right)ctx.scale(1,-1);
+ ctx.strokeStyle='#111';ctx.lineWidth=6.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(al,0);ctx.stroke();
+ ctx.strokeStyle=im?sk:sh;ctx.lineWidth=4.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(al,0);ctx.stroke();
  const w=(self&&bmode)?-1:(e.w|0);ctx.strokeStyle='#111';ctx.lineWidth=1.5;ctx.fillStyle='#374151';
  if(w<0){ctx.fillStyle='#92400e';ctx.fillRect(4,-2,24,4);ctx.strokeRect(4,-2,24,4);ctx.fillStyle='#9ca3af';ctx.fillRect(24,-8,6,16);ctx.strokeRect(24,-8,6,16)}
  else if(w==0){ctx.fillRect(10,-2.5,11,5);ctx.strokeRect(10,-2.5,11,5);ctx.fillRect(11,2,4,5)}
